@@ -13,7 +13,7 @@ const MAX_BYTES = 4 * 1024 * 1024;
 // Vercel Hobby allows up to 60s; the retry loop below stays inside this budget.
 export const maxDuration = 60;
 const BUDGET_MS = 50_000;
-const GROQ_MODEL = process.env.GROQ_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
+const GROQ_MODEL = process.env.GROQ_MODEL || "qwen/qwen3.8-27b"; // vision-capable model on Groq free tier (checked 2026-11-14)
 const GROQ_TIMEOUT_MS = 15_000;
 
 const PROMPT = `You are a fashion cataloguer for a personal wardrobe app. First decide if the photo is usable.
