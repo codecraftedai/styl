@@ -3,7 +3,9 @@ import { COLOURS } from "@/lib/colours";
 import { PATTERNS } from "@/lib/analysis";
 
 // Free tier: Google AI Studio key (no billing). Returns 501 when not configured; the client then falls back to on-device colours.
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+// Google retires models for new keys and busy models return 503, so try a short list in order.
+// The main model is listed twice: a 503 "high demand" usually clears on a quick retry.
+const MODELS = [process.env.GEMINI_MODEL, "gemini-3.8-flash", "gemini-3.8-flash", "gemini-flash-latest", "gemini-3.5-flash"].filter((m): m is string => !!m);
 const MAX_BYTES = 4 * 1024 * 1024;
 
 const PROMPT = `You are a fashion cataloguer for a personal wardrobe app. First decide if the photo is usable.
@@ -51,20 +53,28 @@ export async function POST(req: Request) {
     return Response.json({ error: "Send one image under 4 MB" }, { status: 400 });
   }
 
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: PROMPT }, { inline_data: { mime_type: photo.type, data: Buffer.from(await photo.arrayBuffer()).toString("base64") } }] }],
-      generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.2 },
-    }),
-    signal: AbortSignal.timeout(25_000),
-  }).catch(() => null);
+  const body = JSON.stringify({
+    contents: [{ parts: [{ text: PROMPT }, { inline_data: { mime_type: photo.type, data: Buffer.from(await photo.arrayBuffer()).toString("base64") } }] }],
+    generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.2 },
+  });
+  let res: Response | null = null;
+  for (const model of MODELS) {
+    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": key },
+      body,
+      signal: AbortSignal.timeout(20_000),
+    }).catch(() => null);
+    if (res?.ok) break;
+    // 400/401/403 = our request or key is wrong; another model won't fix it.
+    if (res && [400, 401, 403].includes(res.status)) break;
+  }
 
   if (!res?.ok) return Response.json({ error: "Analysis failed" }, { status: 502 });
   try {
     const data = await res.json();
-    return Response.json(JSON.parse(data.candidates[0].content.parts[0].text));
+    const parts: { text?: string; thought?: boolean }[] = data.candidates[0].content.parts;
+    return Response.json(JSON.parse(parts.filter((x) => x.text && !x.thought).at(-1)!.text!));
   } catch {
     return Response.json({ error: "Analysis failed" }, { status: 502 });
   }

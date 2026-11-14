@@ -19,7 +19,7 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 const MAX_FILE = 25 * 1024 * 1024;
 
 export default function AddItem() {
-  const { addItem, token } = useStore();
+  const { addItem, token, mode } = useStore();
   const router = useRouter();
   const [pending] = useState(peekPendingPhoto);
   const [stage, setStage] = useState<Stage>(pending ? "analysing" : "pick");
@@ -28,6 +28,7 @@ export default function AddItem() {
   const [fields, setFields] = useState<ItemFields | null>(null);
   const [aiUsed, setAiUsed] = useState(false);
   const [issue, setIssue] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const [saving, setSaving] = useState(false);
   const started = useRef(false);
 
@@ -64,6 +65,19 @@ export default function AddItem() {
     clearPendingPhoto();
     process(pending);
   }); // runs once; `started` guards StrictMode's double mount
+
+  /** Re-run the AI check on the same photo; keeps whatever the user already typed if it fails again. */
+  async function retryAnalysis() {
+    if (!photo || !fields) return;
+    setRetrying(true);
+    const a = await analyse(photo, fields.colours, await token());
+    setRetrying(false);
+    if (a.source !== "ai") return toast("Still couldn't check it. Fill the details yourself, or try again in a minute.", "error");
+    setAiUsed(true);
+    if (a.rejected) { setIssue(a.rejected); setStage("rejected"); return; }
+    setIssue(a.warning);
+    setFields({ ...fields, name: a.name, category: a.category, slot: a.slot, colours: a.colours, pattern: a.pattern, formality: a.formality, season: a.season, styles: a.styles });
+  }
 
   async function save() {
     if (!photo || !fields) return;
@@ -153,6 +167,12 @@ export default function AddItem() {
               ) : fields && (
                 <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, ease: EASE }} className="mt-8">
                   {issue && <p role="status" className="mb-4 flex items-start gap-2 rounded-md bg-stone px-4 py-3 text-caption text-ink-2"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />{issue} You can still save it, or retake for better suggestions.</p>}
+                  {!aiUsed && mode === "cloud" && (
+                    <div role="status" className="mb-4 rounded-md bg-stone px-4 py-3 text-caption text-ink-2">
+                      <p className="flex items-start gap-2"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />We couldn&apos;t check this photo right now (the AI service is busy), so it wasn&apos;t auto-filled.</p>
+                      <Button variant="secondary" className="mt-3 h-9 px-4 text-caption" loading={retrying} onClick={retryAnalysis}><Sparkles className="size-3.5" aria-hidden /> Try auto-fill again</Button>
+                    </div>
+                  )}
                   <p className="mb-6 text-center text-caption text-ink-3">
                     {aiUsed ? "We filled everything in from the photo. Change anything that's off, or just save." : "We picked out the colours. Choose the category and details."}
                   </p>
