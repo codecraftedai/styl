@@ -147,3 +147,22 @@ The top 8 × 8 bases are pruned by individual score, before harmony. Harmony mov
 Tests: 45 passing (`pnpm test`). They cover property checks on generated wardrobes of 0–500 items × 3 seeds (no duplicate items, valid slots, no identical outfits, deterministic), `must` for all 7 slots, and each audit fix.
 
 UI change: Home "Shuffle" now steps through the ranked, diverse list (always a different look); Outfits "Shuffle" uses a seed.
+
+## 8. Real-wardrobe review (28 pieces, menswear, 2026-11-14)
+
+**Finding:** every outfit scored the same (8.98). Shirts were indistinguishable to the engine, so the pairing followed upload order. Work, Party and Date night returned identical looks; Festive suggested jeans for a wardrobe with no festive pieces; a logo was read as a "red accent"; a pair of sneakers saved as a Top (auto-fill had failed) could be suggested as a shirt.
+
+**Added rules** (`styling()`, `shade()`, `occasionGap()` in `suggest.ts`):
+- Top/bottom light–dark contrast (+), two different dark neutrals like navy + black (−), monochrome (+), soft light palette (named, no bonus)
+- Shade read from the name too ("light wash", "dark"), because the palette has a single "denim"
+- Sneakers with light/relaxed bottoms, leather with dark/smart ones
+- Streetwear-only + classic-only pieces in one look (−)
+- Party / Date night: darker palette (+)
+- Summer pieces in heat, winter pieces in cold (+); distressed/ripped pieces (−) when the occasion isn't casual
+- Secondary colours count only on patterned pieces (logos ignored)
+- Festive with no festive pieces: explains instead of suggesting
+- Pieces whose auto-fill never ran are flagged "Check details", kept out of outfits, and can be re-read with "Auto-fill now"
+
+**Stylist rating of the top looks** (my judgement): before, 4–9/10, with an average around 6.5 and identical across occasions. After: 7–9/10, and occasion-specific (e.g. Party leads with black shirt + dark denim + leather; Casual with dark green shirt + light-wash + white sneakers).
+
+**Known limits:** shade still depends on the colour/name the AI gives; one pair of smart shoes in the wardrobe means it repeats; fit and silhouette (wide-leg vs slim) aren't recorded, so the engine can't judge proportions.

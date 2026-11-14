@@ -50,7 +50,7 @@ export default function Home() {
   const [pick, setPick] = useState(0); // Shuffle steps through the ranked, already-diverse list
   const [openId, setOpenId] = useState<string | null>(null);
   const close = useCallback(() => setOpenId(null), []);
-  const { list, missing, weather, now } = useSuggestions(occasion, 1);
+  const { list, missing, gap, unchecked, weather, now } = useSuggestions(occasion, 1);
   const top = list.length ? list[pick % list.length] : undefined;
   const open = items.find((i) => i.id === openId);
 
@@ -69,6 +69,11 @@ export default function Home() {
           {greeting()},<br /><em>{profile?.name}</em>.
         </h1>
         <div className="mt-2"><WeatherLine weather={weather} now={now} /></div>
+        {unchecked > 0 && (
+          <Link href="/wardrobe" className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-stone px-3 py-1.5 text-caption text-ink-2 hover:text-ink">
+            {unchecked} {unchecked === 1 ? "piece needs" : "pieces need"} a quick check before we use {unchecked === 1 ? "it" : "them"} <ArrowRight className="size-3.5" aria-hidden />
+          </Link>
+        )}
       </header>
 
       {missing ? (
@@ -97,7 +102,7 @@ export default function Home() {
           <div className="mt-5 md:grid md:grid-cols-[minmax(0,420px)_1fr] md:items-start md:gap-10">
             <AnimatePresence mode="wait">
               <motion.div key={top ? top.items.map((i) => i.id).join() : "none"} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.35, ease: EASE }}>
-                {top ? <SuggestionCard s={top} occasion={occasion} index={pick % list.length} /> : <p className="rounded-xl bg-stone p-6 text-ink-2">Nothing fits {occasion.toLowerCase()} yet. Try another occasion.</p>}
+                {top ? <SuggestionCard s={top} occasion={occasion} index={pick % list.length} /> : <p className="rounded-xl bg-stone p-6 text-ink-2">{gap ?? `Nothing fits ${occasion.toLowerCase()} yet. Try another occasion.`}</p>}
               </motion.div>
             </AnimatePresence>
             <div className="mt-10 hidden md:mt-0 md:block">

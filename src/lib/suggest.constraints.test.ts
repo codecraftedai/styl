@@ -56,8 +56,13 @@ describe("audit fixes", () => {
   });
 
   it("D5: hidden secondary colour clash is penalised", () => {
-    const a = item({ colours: ["black", "red"] }), b = item({ slot: "bottom", colours: ["black", "green"] });
+    const a = item({ colours: ["black", "red"], pattern: "Striped" }), b = item({ slot: "bottom", colours: ["black", "green"], pattern: "Checked" });
     expect(harmony([a, b]).score).toBeLessThan(harmony([item({}), item({ slot: "bottom" })]).score);
+  });
+
+  it("logo colours on solid pieces are not accents", () => {
+    const navyLogo = item({ colours: ["navy", "red"] }), jeans = item({ slot: "bottom", colours: ["denim"] });
+    expect(harmony([navyLogo, jeans]).note).toBe("Clean neutral palette");
   });
 
   it("D6: a better accessory beats a poor bag", () => {
@@ -107,5 +112,51 @@ describe("laundry", () => {
     const res = suggest(w.filter((i) => !laundry.includes(i.id)), ctx());
     expect(res.length).toBeGreaterThan(0);
     expect(res.every((s) => s.items.every((i) => !laundry.includes(i.id)))).toBe(true);
+  });
+});
+
+describe("stylist rules (from the real-wardrobe review)", async () => {
+  const { styling, occasionGap } = await import("./suggest");
+  const derby = item({ slot: "shoes", formality: "smart", colours: ["black"], styles: ["Classic"] });
+  const sneakers = item({ slot: "shoes", formality: "casual", colours: ["white"], styles: ["Minimal"] });
+  const lightJeans = item({ slot: "bottom", formality: "casual", colours: ["sky"] });
+  const blackJeans = item({ slot: "bottom", formality: "casual", colours: ["black"] });
+
+  it("sneakers suit light jeans; leather suits dark bottoms", () => {
+    const shirt = item({ colours: ["green"] });
+    expect(styling([shirt, lightJeans, sneakers], "Casual").score).toBeGreaterThan(styling([shirt, lightJeans, derby], "Casual").score);
+    expect(styling([shirt, blackJeans, derby], "Work").score).toBeGreaterThan(styling([shirt, blackJeans, sneakers], "Work").score);
+  });
+  it("navy over black reads muddy; white over black is clean contrast", () => {
+    expect(styling([item({ colours: ["navy"] }), blackJeans], "Work").score).toBeLessThan(styling([item({ colours: ["white"] }), blackJeans], "Work").score);
+  });
+  it("evening occasions prefer a darker palette", () => {
+    const dark = [item({ colours: ["black"] }), blackJeans], light = [item({ colours: ["white"] }), item({ slot: "bottom", colours: ["beige"] })];
+    expect(styling(dark, "Party").score).toBeGreaterThan(styling(light, "Party").score);
+  });
+  it("festive without festive pieces explains instead of suggesting jeans", () => {
+    const w = [item({}), blackJeans, derby];
+    expect(occasionGap(w, "Festive")).toMatch(/No festive pieces/);
+    expect(suggest(w, ctx({}, { occasion: "Festive" }))).toEqual([]);
+    expect(occasionGap([...w, item({ category: "Ethnic", slot: "one-piece" })], "Festive")).toBeNull();
+  });
+});
+
+describe("shade from the name", async () => {
+  const { shade } = await import("./suggest");
+  it("light-wash denim reads lighter than plain denim, dark denim darker", () => {
+    const plain = item({ slot: "bottom", colours: ["denim"], name: "Blue denim jeans" });
+    expect(shade({ ...plain, name: "Light blue denim trousers" })).toBeGreaterThan(shade(plain) + 0.2);
+    expect(shade({ ...plain, name: "Dark wash jeans" })).toBeLessThan(shade(plain));
+  });
+});
+
+describe("review follow-ups", () => {
+  it("distressed jeans stay out of work looks when other bottoms exist", () => {
+    const shirt = item({ formality: "smart" });
+    const ripped = item({ slot: "bottom", formality: "casual", name: "Blue distressed jeans", colours: ["denim"] });
+    const plain = item({ slot: "bottom", formality: "casual", name: "Blue denim jeans", colours: ["denim"] });
+    const [s] = suggest([shirt, ripped, plain], ctx({}, { occasion: "Work" }));
+    expect(s.items).toContain(plain);
   });
 });

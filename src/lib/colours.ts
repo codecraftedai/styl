@@ -43,3 +43,11 @@ export function nearestColour(r: number, g: number, b: number): string {
   }
   return best;
 }
+
+/** Perceived lightness 0 (black) … 1 (white) of a palette colour; multicolour counts as mid. */
+export function lightness(id: string): number {
+  const hex = colourById(id)?.hex;
+  if (!hex?.startsWith("#")) return 0.5;
+  const [r, g, b] = rgb(hex).map((v) => v / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}

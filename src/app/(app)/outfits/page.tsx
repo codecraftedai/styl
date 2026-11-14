@@ -31,7 +31,7 @@ function Outfits() {
   const [seed, setSeed] = useState(1);
   const [withId, setWithId] = useState<string | null>(useSearchParams().get("with"));
 
-  const { list, missing, weather, now } = useSuggestions(occasion, seed, withId);
+  const { list, missing, gap, weather, now } = useSuggestions(occasion, seed, withId);
   const anchor = items.find((i) => i.id === withId);
 
   return (
@@ -70,8 +70,9 @@ function Outfits() {
             <EmptyState icon={<Sparkles className="size-6 stroke-[1.25]" />} title="Almost ready to style you" body={missing}
               action={<Link href="/add" className="inline-flex h-11 items-center rounded-full bg-ink px-6 text-on-ink">Add a piece</Link>} />
           ) : list.length === 0 ? (
-            <EmptyState icon={<Sparkles className="size-6 stroke-[1.25]" />} title="Nothing fits this one yet"
-              body={anchor ? "We couldn't build a look around this piece. Add something to pair with it." : "Try another occasion, or add a few more pieces."} />
+            <EmptyState icon={<Sparkles className="size-6 stroke-[1.25]" />} title={gap ? `Nothing for ${occasion.toLowerCase()} yet` : "Nothing fits this one yet"}
+              body={gap ?? (anchor ? "We couldn't build a look around this piece. Add something to pair with it." : "Try another occasion, or add a few more pieces.")}
+              action={gap ? <Link href="/add" className="inline-flex h-11 items-center rounded-full bg-ink px-6 text-on-ink">Add a piece</Link> : undefined} />
           ) : (
             <motion.div key={`${occasion}-${seed}`} className="mt-6 -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-6 no-scrollbar md:mx-0 md:grid md:grid-cols-2 md:gap-8 md:overflow-visible md:px-0 lg:grid-cols-3"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>

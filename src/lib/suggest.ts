@@ -1,4 +1,4 @@
-import { colourById } from "./colours";
+import { colourById, lightness } from "./colours";
 import type { Climate, Formality, Item, Occasion, Prefs, Slot, Style } from "./types";
 
 // Outfit engine: pure rules, runs on device. Audit and rationale: docs/SUGGEST-AUDIT.md.
@@ -46,6 +46,12 @@ const W = {
   mildLayerMin: 0.5, // a layer joins a mild-day outfit only if it raises the score this much
   overlap: 1.5, // diversity: penalty per item shared with the most similar already-picked outfit
   shuffle: 1.5, // max outfit-level variation when seed > 1
+  contrast: 0.8, // top vs bottom light/dark contrast in the sweet spot
+  dullDark: -0.8, // two different dark neutrals (navy + black, brown + black): reads muddy
+  monochrome: 0.5, // same colour head to toe: intentional
+  shoesForBottom: 0.8, // sneakers with light/relaxed bottoms, leather with dark/smart bottoms
+  styleClash: -0.8, // e.g. streetwear-only piece with a classic-only piece
+  eveningPalette: 1, // party / date night: darker, richer outfit
 };
 const CANDIDATES = 12; // per base slot; 12 × 12 tops/bottoms keeps a call under ~10 ms at 1000 items
 const WORN: Slot[] = ["top", "bottom", "one-piece", "shoes", "outer"];
@@ -75,6 +81,7 @@ export function itemScore(item: Item, ctx: Context, weather: Weather): number {
   s += gap === 0 ? 2 : gap === 1 ? 0 : -3;
   if (weather === "hot" && item.season === "winter") s -= 4;
   if (weather === "cold" && item.season === "summer") s -= 2;
+  if ((weather === "hot" && item.season === "summer") || (weather === "cold" && item.season === "winter")) s += 1; // linen in heat, wool in cold
   s += Math.min(2, item.styles.filter((st) => p.styles.includes(st)).length);
   if (item.styles.some((st) => OCCASION_STYLES[ctx.occasion].includes(st))) s += 1.5;
   if (p.loveColours.includes(item.colours[0])) s += 1;
@@ -85,13 +92,70 @@ export function itemScore(item: Item, ctx: Context, weather: Weather): number {
   if (item.favourite) s += 0.5;
   if (item.pattern !== "Solid") s += p.prints === "Love them" ? 0.7 : p.prints === "Rarely" ? -2 : 0;
   if (UNDERTONE_COLOURS[p.undertone].includes(item.colours[0])) s += 0.7;
+  // Ripped / distressed pieces are casual whatever their label says.
+  if (/\b(distressed|ripped|destroyed)\b/i.test(item.name) && targetFormality(ctx.occasion, p) !== "casual") s -= 1.5;
   return s;
+}
+
+const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+const EVENING: Occasion[] = ["Party", "Date night"];
+const piece = (items: Item[], slot: Slot) => items.find((i) => i.slot === slot);
+
+/** Lightness of a piece: palette value, nudged by the shade word in its name ("light wash", "dark green").
+ *  The palette has one "denim"; the name is what tells light-wash from raw. */
+export function shade(item: Item): number {
+  const l = lightness(item.colours[0]);
+  const n = item.name.toLowerCase();
+  if (/\b(light|pale|ice|faded|washed)\b/.test(n)) return Math.min(1, l + 0.3);
+  if (/\b(dark|deep|raw|indigo)\b/.test(n)) return Math.max(0, l - 0.15);
+  return l;
+}
+
+/** Stylist rules on how the worn pieces relate to each other (not to the user). */
+export function styling(items: Item[], occasion: Occasion): { score: number; note: string | null } {
+  let score = 0, note: string | null = null;
+  const onePiece = piece(items, "one-piece");
+  const top = piece(items, "top"), bottom = piece(items, "bottom") ?? onePiece, shoes = piece(items, "shoes");
+  // A dress / saree / kurta set is already a coordinated look: same credit as a well-matched top + bottom.
+  if (onePiece) score += W.contrast;
+  if (top && bottom && !onePiece) {
+    const [lt, lb] = [shade(top), shade(bottom)];
+    const d = Math.abs(lt - lb);
+    if (top.colours[0] === bottom.colours[0]) { score += W.monochrome; note = "Monochrome, head to toe"; }
+    else if (d >= 0.25 && Math.min(lt, lb) < 0.45) { score += W.contrast; note = lt > lb ? "Light over dark: easy contrast" : "Dark over light: clean contrast"; }
+    else if (lt > 0.55 && lb > 0.55) note = "Soft, light palette";
+    else if (lt < 0.3 && lb < 0.3) score += W.dullDark;
+  }
+  if (bottom && shoes) {
+    const relaxed = shade(bottom) > 0.45 || (bottom.styles.includes("Streetwear") && !bottom.styles.includes("Classic"));
+    const sneaker = shoes.formality === "casual";
+    if (relaxed === sneaker) score += W.shoesForBottom;
+    else score -= W.shoesForBottom / 2;
+  }
+  const worn = items.filter((i) => WORN.includes(i.slot) && i.styles.length);
+  const street = (i: Item) => i.styles.some((s) => s === "Streetwear" || s === "Sporty") && !i.styles.includes("Classic");
+  const classic = (i: Item) => i.styles.includes("Classic") && !i.styles.some((s) => s === "Streetwear" || s === "Sporty");
+  if (worn.some(street) && worn.some(classic)) score += W.styleClash;
+  if (EVENING.includes(occasion)) {
+    const l = mean(items.filter((i) => CLOTHING.includes(i.slot)).map(shade));
+    if (l < 0.35) { score += W.eveningPalette; note = "Darker palette for the evening"; }
+    else if (l > 0.65) score -= W.eveningPalette / 2;
+  }
+  return { score, note };
+}
+
+/** Occasions the wardrobe can't dress yet; null when it can. */
+export function occasionGap(items: Item[], occasion: Occasion): string | null {
+  if (occasion !== "Festive") return null;
+  const festive = items.some((i) => CLOTHING.includes(i.slot) && (i.category === "Ethnic" || i.styles.includes("Ethnic") || i.formality === "formal"));
+  return festive ? null : "No festive pieces yet. Add a kurta, sherwani, saree, lehenga or something formal to get festive looks.";
 }
 
 /** Colour and pattern harmony: neutrals go with anything, one accent is ideal. Looks at every colour of the clothes, not just the main one. */
 export function harmony(items: Item[], boldness: Boldness = "Balanced"): { score: number; note: string | null } {
   const clothes = items.filter((i) => CLOTHING.includes(i.slot));
-  const accents = [...new Set(items.flatMap((i) => (CLOTHING.includes(i.slot) ? i.colours : i.colours.slice(0, 1))))]
+  // Secondary colours only count on patterned clothes; on a solid piece they're a logo or trim.
+  const accents = [...new Set(items.flatMap((i) => (CLOTHING.includes(i.slot) && i.pattern !== "Solid" ? i.colours : i.colours.slice(0, 1))))]
     .filter((c) => c !== "multi" && !colourById(c)?.neutral);
   // A multicolour piece reads as a print, not as one accent of unknown hue.
   const prints = clothes.filter((i) => i.pattern !== "Solid" || i.colours.includes("multi")).length;
@@ -117,13 +181,13 @@ function rng(seed: number) {
   return () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
 }
 
-const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
 export function suggest(all: Item[], ctx: Context, n = 5): Suggestion[] {
   const weather = weatherOf(ctx.tempC, ctx.prefs.climate, ctx.prefs.tempFeel);
   const bold = ctx.prefs.boldness;
   const must = ctx.must ? all.find((i) => i.id === ctx.must) : undefined;
   if (ctx.must && !must) return [];
+  if (occasionGap(all, ctx.occasion)) return [];
 
   const fit = new Map(all.map((i) => [i.id, itemScore(i, ctx, weather)]));
   const f = (i: Item) => fit.get(i.id)!;
@@ -139,7 +203,7 @@ export function suggest(all: Item[], ctx: Context, n = 5): Suggestion[] {
   /** Fair outfit score: mean fit of worn pieces + harmony + bounded completeness + small accessory share. */
   const score = (items: Item[]) => {
     const worn = items.filter((i) => WORN.includes(i.slot));
-    let s = mean(worn.map(f)) + harmony(items, bold).score;
+    let s = mean(worn.map(f)) + harmony(items, bold).score + styling(items, ctx.occasion).score;
     if (owns("shoes") && items.some((i) => i.slot === "shoes")) s += W.shoes;
     if (weather === "cold") s += items.some((i) => i.slot === "outer") ? W.layerCold : owns("outer") ? W.noLayerCold : 0;
     for (const i of items) if (i.slot === "bag" || i.slot === "accessory") s += W.accessoryShare * f(i);
@@ -211,6 +275,8 @@ function explain(items: Item[], ctx: Context, weather: Weather, bold: Boldness, 
   const target = targetFormality(ctx.occasion, ctx.prefs);
   if (must) reasons.push(`Built around your ${must.name.toLowerCase()}`);
   if (items.every((i) => Math.abs(LEVEL[i.formality] - LEVEL[target]) <= 1)) reasons.push(`Right level of dressy for ${ctx.occasion.toLowerCase()}`);
+  const st = styling(items, ctx.occasion);
+  if (st.note && (st.score > 0 || st.note === "Soft, light palette")) reasons.push(st.note);
   const h = harmony(items, bold);
   if (h.note && h.score > 0) reasons.push(h.note);
   const loved = items.map((i) => i.colours[0]).find((c) => ctx.prefs.loveColours.includes(c));

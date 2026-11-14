@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
-import { ArrowLeft, Heart, Pencil, Shirt, Sparkles, Trash2, WashingMachine } from "lucide-react";
+import { ArrowLeft, CircleAlert, Heart, Pencil, Shirt, Sparkles, Trash2, WashingMachine } from "lucide-react";
+import { analyse, needsReview } from "@/lib/analysis";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
@@ -31,7 +32,8 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 const worn = (i: Item) => (!i.lastWorn ? "Not logged yet" : i.lastWorn === today() ? "Today" : new Date(i.lastWorn).toLocaleDateString("en-IN", { day: "numeric", month: "short" }));
 
 export function ItemDetail({ item, onClose }: { item: Item; onClose: () => void }) {
-  const { urls, updateItem, deleteItem, markWorn, profile, setLaundry } = useStore();
+  const { urls, updateItem, deleteItem, markWorn, profile, setLaundry, token } = useStore();
+  const [filling, setFilling] = useState(false);
   const inLaundry = !!profile?.prefs.laundry?.includes(item.id);
   const router = useRouter();
   const [editing, setEditing] = useState<ItemFields | null>(null);
@@ -45,6 +47,21 @@ export function ItemDetail({ item, onClose }: { item: Item; onClose: () => void 
     return () => removeEventListener("popstate", onPop);
   }, [onClose]);
   const close = () => history.back();
+
+  /** Re-read the saved photo with the AI and replace the guessed details (brand and notes are kept). */
+  async function autofill() {
+    const src = urls[item.imagePath];
+    if (!src) return;
+    setFilling(true);
+    try {
+      const blob = await (await fetch(src)).blob();
+      const a = await analyse(blob, item.colours, await token());
+      if (a.rejected) toast(a.rejected, "error");
+      else if (a.source !== "ai") toast("The AI is busy. Try again in a minute, or edit the details yourself.", "error");
+      else { await updateItem({ ...item, name: a.name, category: a.category, slot: a.slot, colours: a.colours, pattern: a.pattern, formality: a.formality, season: a.season, styles: a.styles }); toast(`Updated: ${a.name}`); }
+    } catch { toast("Couldn't load the photo. Check your connection.", "error"); }
+    finally { setFilling(false); }
+  }
 
   return createPortal(
     <motion.div className="fixed inset-0 z-50 overflow-y-auto bg-ivory md:bg-scrim md:p-8" role="dialog" aria-modal aria-label={item.name}
@@ -66,6 +83,13 @@ export function ItemDetail({ item, onClose }: { item: Item; onClose: () => void 
             {inLaundry && <span className="flex items-center gap-1 rounded-full bg-stone px-2 py-0.5 normal-case tracking-normal text-ink-2"><WashingMachine className="size-3" aria-hidden /> In laundry</span>}
           </p>
           <h2 className="mt-2 font-display text-title">{item.name}</h2>
+
+          {needsReview(item) && (
+            <div role="status" className="mt-5 rounded-md bg-stone px-4 py-3 text-caption text-ink-2">
+              <p className="flex items-start gap-2"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />Auto-fill didn&apos;t run when this was added, so its details may be wrong. That affects your outfits.</p>
+              <Button variant="secondary" className="mt-3 h-9 px-4 text-caption" loading={filling} onClick={autofill}><Sparkles className="size-3.5" aria-hidden /> Auto-fill now</Button>
+            </div>
+          )}
 
           <div className="mt-6 grid grid-cols-2 gap-3">
             <Button onClick={() => { router.push(`/outfits?with=${item.id}`); }}><Sparkles className="size-4" aria-hidden /> Style it</Button>

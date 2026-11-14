@@ -61,3 +61,6 @@ export async function analyse(photo: Blob, localColours: string[], token: string
   } catch { /* offline or no key: fall through */ }
   return { ...sanitise({}, localColours), source: "basic", rejected: null, warning: null };
 }
+
+/** Pieces saved while auto-fill was unavailable still carry the fallback name ("New piece", "Silver piece"). */
+export const needsReview = (item: { name: string }) => /^(\w+ )?piece$/i.test(item.name.trim());

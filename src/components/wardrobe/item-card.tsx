@@ -1,6 +1,7 @@
 "use client";
 
-import { Heart, WashingMachine } from "lucide-react";
+import { CircleAlert, Heart, WashingMachine } from "lucide-react";
+import { needsReview } from "@/lib/analysis";
 import { motion } from "motion/react";
 import type { Item } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -16,6 +17,7 @@ export function ItemCard({ item, src, onOpen, onToggleFavourite, index = 0, inLa
       <button type="button" onClick={onOpen} className="block w-full text-left">
         <span className="relative block">
           <ItemImage src={src} alt={item.name} layoutId={`img-${item.id}`} className={cn("rounded-lg transition-[transform,opacity] duration-500 ease-[var(--ease-lux)] group-hover:-translate-y-0.5 group-active:scale-[0.98]", inLaundry && "opacity-45")} />
+          {needsReview(item) && !inLaundry && <span className="absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-surface/90 px-2 py-1 text-[10px] font-medium text-ink-2"><CircleAlert className="size-3" aria-hidden /> Check details</span>}
           {inLaundry && <span className="absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-surface/90 px-2 py-1 text-[10px] font-medium text-ink-2"><WashingMachine className="size-3" aria-hidden /> In laundry</span>}
         </span>
         <div className="mt-2.5 flex items-start gap-2 px-0.5">
