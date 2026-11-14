@@ -1,5 +1,6 @@
 import { CATEGORIES, FORMALITY, SEASONS, SLOTS, STYLES, type Category, type Formality, type Season, type Slot, type Style } from "./types";
 import { COLOURS } from "./colours";
+import { compress } from "./image";
 
 export type Analysis = {
   name: string;
@@ -46,8 +47,10 @@ export function sanitise(raw: Record<string, unknown>, fallbackColours: string[]
 /** Ask the server (Gemini, if a key is set). Falls back to on-device colours only. */
 export async function analyse(photo: Blob, localColours: string[], token: string | null): Promise<Analysis> {
   try {
+    // 512px is plenty to recognise a garment and roughly halves the AI tokens (free tiers limit tokens per minute).
+    const small = await compress(photo, 512).catch(() => photo);
     const body = new FormData();
-    body.append("photo", photo);
+    body.append("photo", small);
     const res = await fetch("/api/analyse", { method: "POST", body, headers: token ? { authorization: `Bearer ${token}` } : {} });
     if (res.ok) {
       const raw = await res.json();

@@ -15,6 +15,7 @@ export const maxDuration = 60;
 const BUDGET_MS = 50_000;
 const GROQ_MODEL = process.env.GROQ_MODEL || "qwen/qwen3.8-27b"; // vision-capable model on Groq free tier (checked 2026-11-14)
 const GROQ_TIMEOUT_MS = 15_000;
+const GEMINI_BACKUP_MS = 15_000; // Gemini is a last resort; never make the user wait ~50s for it
 
 const PROMPT = `You are a fashion cataloguer for a personal wardrobe app. First decide if the photo is usable.
 "wearable": true only if the main subject is a real garment, footwear, bag or fashion accessory. Posters, screenshots, text, logos, food, rooms, pets, selfies where clothing is not the focus, and drawings are false.
@@ -41,19 +42,16 @@ const schema = {
   required: ["wearable", "problem", "name", "category", "slot", "colours", "pattern", "formality", "season", "styles"],
 };
 
-// Groq has no response schema, so the allowed values go in the prompt; sanitise() on the client coerces anything off-list.
+// Groq has no response schema, so the allowed values go in the prompt (kept short: the free tier limits tokens per minute).
+// sanitise() on the client coerces anything off-list.
 const GROQ_PROMPT = `${PROMPT}
-Reply with one JSON object only, with exactly these keys:
-wearable (boolean), problem (string), name (string),
-category: one of ${CATEGORIES.join(", ")};
-slot: one of ${SLOTS.join(", ")};
-colours: array of 1-3 from ${COLOURS.map((c) => c.id).join(", ")};
-pattern: one of ${PATTERNS.join(", ")};
-formality: one of ${FORMALITY.join(", ")};
-season: one of ${SEASONS.join(", ")};
-styles: array of 0-3 from ${STYLES.join(", ")}.`;
+Reply with JSON only: {wearable:boolean, problem:string, name:string, category, slot, colours:[1-3], pattern, formality, season, styles:[0-3]}.
+category: ${CATEGORIES.join("|")}. slot: ${SLOTS.join("|")}. colours: ${COLOURS.map((c) => c.id).join("|")}.
+pattern: ${PATTERNS.join("|")}. formality: ${FORMALITY.join("|")}. season: ${SEASONS.join("|")}. styles: ${STYLES.join("|")}.`;
 
-async function viaGroq(key: string, mime: string, b64: string): Promise<unknown | null> {
+type GroqResult = { data: unknown } | { waitMs: number } | null;
+
+async function viaGroq(key: string, mime: string, b64: string): Promise<GroqResult> {
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
@@ -66,13 +64,19 @@ async function viaGroq(key: string, mime: string, b64: string): Promise<unknown 
     signal: AbortSignal.timeout(GROQ_TIMEOUT_MS),
   }).catch(() => null);
   if (!res?.ok) {
-    console.error("Groq analysis failed", res?.status ?? "timeout", res ? (await res.text().catch(() => "")).slice(0, 500) : "");
+    const text = res ? await res.text().catch(() => "") : "";
+    console.error("Groq analysis failed", res?.status ?? "timeout", text.slice(0, 300));
+    if (res?.status === 429) {
+      // Per-minute token limit: Groq says how long to wait ("try again in 16.8s" or a retry-after header).
+      const secs = Number(res.headers.get("retry-after")) || Number(/try again in ([\d.]+)s/.exec(text)?.[1]) || 10;
+      return { waitMs: Math.ceil(secs * 1000) + 250 };
+    }
     return null;
   }
   const content: string = (await res.json().catch(() => null))?.choices?.[0]?.message?.content ?? "";
   const parsed = parseJsonObject(content);
   if (!parsed) console.error("Groq returned unparseable content", content.slice(0, 300));
-  return parsed;
+  return parsed ? { data: parsed } : null;
 }
 
 /** Models sometimes wrap JSON in <think> blocks or code fences; take the outermost {...}. */
@@ -106,9 +110,12 @@ export async function POST(req: Request) {
   const b64 = Buffer.from(await photo.arrayBuffer()).toString("base64");
   const started = Date.now();
   if (groqKey) {
-    for (let attempt = 0; attempt < 2; attempt++) { // one quick retry: free-tier hiccups usually clear immediately
+    for (let attempt = 0; attempt < 3; attempt++) {
       const out = await viaGroq(groqKey, photo.type, b64);
-      if (out) return Response.json(out);
+      if (out && "data" in out) return Response.json(out.data);
+      const wait = out ? out.waitMs : 500;
+      if (Date.now() - started + wait > BUDGET_MS - GROQ_TIMEOUT_MS) break; // no time left for another try
+      await new Promise((r) => setTimeout(r, wait));
     }
   }
   if (!key) return Response.json({ error: "Analysis failed" }, { status: 502 });
@@ -123,10 +130,12 @@ export async function POST(req: Request) {
     },
   });
 
+  // With Groq configured, Gemini gets one short window in total; alone, it gets the whole budget.
+  const geminiDeadline = Math.min(started + BUDGET_MS, groqKey ? Date.now() + GEMINI_BACKUP_MS : Infinity);
   let res: Response | null = null;
   for (const [i, model] of MODELS.entries()) {
     if (i > 0) await new Promise((r) => setTimeout(r, Math.min(2_000 * i, 6_000))); // back off: busy models often recover in seconds
-    const left = BUDGET_MS - (Date.now() - started);
+    const left = geminiDeadline - Date.now();
     if (left < 5_000) break;
     res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
