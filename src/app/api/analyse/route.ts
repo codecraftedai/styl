@@ -84,9 +84,9 @@ export async function POST(req: Request) {
   }
 
   if (!res?.ok) {
-    // Upstream status helps debugging from the browser network tab; no secrets in it.
-    const detail = res ? `${res.status} ${(await res.text().catch(() => "")).slice(0, 160)}` : "timeout";
-    return Response.json({ error: "Analysis failed", detail }, { status: 502 });
+    // Full upstream body stays in the server log (Vercel → Logs); the client only gets the status.
+    console.error("Gemini analysis failed", res?.status ?? "timeout", res ? (await res.text().catch(() => "")).slice(0, 500) : "");
+    return Response.json({ error: "Analysis failed", status: res?.status ?? "timeout" }, { status: 502 });
   }
   try {
     const data = await res.json();
