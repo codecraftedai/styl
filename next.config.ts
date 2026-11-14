@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Lets phones on the same Wi-Fi load dev assets via the laptop IP.
+  allowedDevOrigins: ["172.20.10.3", "192.168.*.*", "10.*.*.*"],
   turbopack: {
     rules: {
       "*.css": {
