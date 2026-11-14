@@ -16,6 +16,9 @@ import { colourById } from "@/lib/colours";
 import { useStore } from "@/lib/store";
 import { CATEGORIES, type Item } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { toast } from "@/components/ui/toast";
+
+const LAUNDRY = "In laundry";
 
 const SORTS = {
   "Recently added": (a: Item, b: Item) => b.createdAt.localeCompare(a.createdAt),
@@ -26,7 +29,8 @@ const SORTS = {
 type Sort = keyof typeof SORTS;
 
 export default function Wardrobe() {
-  const { items, urls, updateItem } = useStore();
+  const { items, urls, updateItem, profile, setLaundry } = useStore();
+  const laundry = useMemo(() => profile?.prefs.laundry ?? [], [profile]);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<string>("All");
   const [colour, setColour] = useState<string | null>(null);
@@ -39,13 +43,13 @@ export default function Wardrobe() {
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return items
-      .filter((i) => filter === "All" || (filter === "Favourites" ? i.favourite : i.category === filter))
+      .filter((i) => filter === "All" || (filter === "Favourites" ? i.favourite : filter === LAUNDRY ? laundry.includes(i.id) : i.category === filter))
       .filter((i) => !colour || i.colours.includes(colour))
       .filter((i) => !needle || [i.name, i.brand, i.category, i.pattern, ...i.colours.map((c) => colourById(c)?.label ?? "")].join(" ").toLowerCase().includes(needle))
       .sort(SORTS[sort]);
-  }, [items, q, filter, colour, sort]);
+  }, [items, q, filter, colour, sort, laundry]);
   const open = items.find((i) => i.id === openId);
-  const filters = ["All", "Favourites", ...CATEGORIES.filter((c) => items.some((i) => i.category === c))];
+  const filters = ["All", "Favourites", ...(laundry.length ? [LAUNDRY] : []), ...CATEGORIES.filter((c) => items.some((i) => i.category === c))];
 
   return (
     <div className="mx-auto max-w-6xl px-4 pt-safe md:px-10">
@@ -66,7 +70,7 @@ export default function Wardrobe() {
           <div className="sticky top-0 z-20 -mx-4 bg-ivory/85 px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-3 backdrop-blur-md md:-mx-10 md:px-10">
             <SearchField value={q} onChange={(e) => setQ(e.target.value)} onClear={() => setQ("")} placeholder="Search name, brand, colour" />
             <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 no-scrollbar md:-mx-10 md:px-10">
-              {filters.map((f) => <Chip key={f} selected={filter === f} onClick={() => setFilter(f)}>{f}</Chip>)}
+              {filters.map((f) => <Chip key={f} selected={filter === f} onClick={() => setFilter(f)}>{f === LAUNDRY ? `${f} · ${laundry.length}` : f}</Chip>)}
             </div>
             {coloursOwned.length > 1 && (
               <div className="-mx-4 mt-2 flex gap-1 overflow-x-auto px-4 no-scrollbar md:-mx-10 md:px-10" role="group" aria-label="Filter by colour">
@@ -80,13 +84,20 @@ export default function Wardrobe() {
             )}
           </div>
 
+          {filter === LAUNDRY && laundry.length > 0 && (
+            <div className="mt-3 flex items-center justify-between rounded-md bg-stone px-4 py-2.5 text-caption">
+              <span>{laundry.length} {laundry.length === 1 ? "piece is" : "pieces are"} out of outfits until clean.</span>
+              <button type="button" className="font-medium underline underline-offset-2" onClick={() => { setLaundry(laundry, false); setFilter("All"); toast("All marked clean"); }}>Laundry done</button>
+            </div>
+          )}
+
           {shown.length === 0 ? (
             <EmptyState icon={<Shirt className="size-6 stroke-[1.25]" />} title="No matches" body="Nothing fits these filters."
               action={<button type="button" className="underline underline-offset-4" onClick={() => { setQ(""); setFilter("All"); setColour(null); }}>Clear filters</button>} />
           ) : (
             <div className="masonry mt-3">
               {shown.map((i, k) => (
-                <ItemCard key={i.id} item={i} src={urls[i.imagePath]} index={k} onOpen={() => setOpenId(i.id)} onToggleFavourite={() => updateItem({ ...i, favourite: !i.favourite })} />
+                <ItemCard key={i.id} item={i} src={urls[i.imagePath]} index={k} inLaundry={laundry.includes(i.id)} onOpen={() => setOpenId(i.id)} onToggleFavourite={() => updateItem({ ...i, favourite: !i.favourite })} />
               ))}
             </div>
           )}

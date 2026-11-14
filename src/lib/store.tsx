@@ -24,6 +24,8 @@ type Store = {
   updateItem(item: Item): Promise<void>;
   deleteItem(item: Item): Promise<void>;
   markWorn(ids: string[]): Promise<void>;
+  /** Put items in (or take them out of) the laundry. */
+  setLaundry(ids: string[], inLaundry: boolean): Promise<void>;
   saveOutfit(o: Omit<Outfit, "id" | "createdAt">): Promise<void>;
   deleteOutfit(id: string): Promise<void>;
   token(): Promise<string | null>;
@@ -103,6 +105,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           async () => { await b.deleteItem(item); await Promise.all(outfits.filter((o) => o.itemIds.includes(item.id)).map((o) => b.deleteOutfit(o.id))); },
           "Couldn't delete the item.",
         );
+      },
+      async setLaundry(ids, inLaundry) {
+        if (!profile) return;
+        const prev = profile;
+        const current = profile.prefs.laundry ?? [];
+        const laundry = inLaundry ? [...new Set([...current, ...ids])] : current.filter((id) => !ids.includes(id));
+        const next = { ...profile, prefs: { ...profile.prefs, laundry } };
+        await commit(() => setProfile(next), () => setProfile(prev), () => b.saveProfile(next), "Couldn't update the laundry.");
       },
       async markWorn(ids) {
         const prev = items, d = today();

@@ -58,6 +58,8 @@ export type Prefs = {
   avoidColours: string[];
   climate: Climate;
   liveWeather: boolean;
+  /** Item ids currently in the laundry: excluded from suggestions until marked clean. Kept in prefs (jsonb) so no DB migration is needed. */
+  laundry: string[];
   dressCode: (typeof DRESS_CODES)[number];
   boldness: (typeof BOLDNESS)[number];
   prints: (typeof PRINT_LOVE)[number];
@@ -71,5 +73,5 @@ export type Profile = { name: string; prefs: Prefs; onboarded: boolean };
 export type Outfit = { id: string; name: string; itemIds: string[]; occasion: Occasion; createdAt: string };
 
 export const EMPTY_PREFS: Prefs = { wear: "Both", styles: [], occasions: [], loveColours: [], avoidColours: [], climate: "Hot", liveWeather: false,
-  dressCode: "Business casual", boldness: "Balanced", prints: "Sometimes", undertone: "Not sure", tempFeel: "Normal", accessories: "Sometimes",
+  dressCode: "Business casual", boldness: "Balanced", prints: "Sometimes", undertone: "Not sure", tempFeel: "Normal", accessories: "Sometimes", laundry: [],
 };

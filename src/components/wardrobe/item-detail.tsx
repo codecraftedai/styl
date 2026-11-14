@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
-import { ArrowLeft, Heart, Pencil, Shirt, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, Heart, Pencil, Shirt, Sparkles, Trash2, WashingMachine } from "lucide-react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
@@ -31,7 +31,8 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 const worn = (i: Item) => (!i.lastWorn ? "Not logged yet" : i.lastWorn === today() ? "Today" : new Date(i.lastWorn).toLocaleDateString("en-IN", { day: "numeric", month: "short" }));
 
 export function ItemDetail({ item, onClose }: { item: Item; onClose: () => void }) {
-  const { urls, updateItem, deleteItem, markWorn } = useStore();
+  const { urls, updateItem, deleteItem, markWorn, profile, setLaundry } = useStore();
+  const inLaundry = !!profile?.prefs.laundry?.includes(item.id);
   const router = useRouter();
   const [editing, setEditing] = useState<ItemFields | null>(null);
   const [confirm, setConfirm] = useState(false);
@@ -61,7 +62,9 @@ export function ItemDetail({ item, onClose }: { item: Item; onClose: () => void 
 
         <motion.div className="px-6 pt-6 pb-[max(2rem,env(safe-area-inset-bottom))] md:p-10"
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.5, ease: EASE }}>
-          <p className="text-label uppercase text-champagne-ink">{item.brand || item.category}</p>
+          <p className="flex items-center gap-2 text-label uppercase text-champagne-ink">{item.brand || item.category}
+            {inLaundry && <span className="flex items-center gap-1 rounded-full bg-stone px-2 py-0.5 normal-case tracking-normal text-ink-2"><WashingMachine className="size-3" aria-hidden /> In laundry</span>}
+          </p>
           <h2 className="mt-2 font-display text-title">{item.name}</h2>
 
           <div className="mt-6 grid grid-cols-2 gap-3">
@@ -80,7 +83,10 @@ export function ItemDetail({ item, onClose }: { item: Item; onClose: () => void 
             {item.notes && <Fact label="Notes"><span className="text-ink-2">{item.notes}</span></Fact>}
           </dl>
 
-          <div className="mt-6 flex gap-2 border-t border-line pt-6">
+          <div className="mt-6 flex flex-wrap gap-2 border-t border-line pt-6">
+            <Button variant="ghost" aria-pressed={inLaundry} onClick={() => { setLaundry([item.id], !inLaundry); toast(inLaundry ? "Marked clean. Back in your outfits." : "In the laundry. We'll leave it out of outfits."); }}>
+              <WashingMachine className="size-4" aria-hidden /> {inLaundry ? "Mark clean" : "In laundry"}
+            </Button>
             <Button variant="ghost" onClick={() => setEditing({ ...item })}><Pencil className="size-4" aria-hidden /> Edit</Button>
             <Button variant="ghost" className="text-danger" onClick={() => setConfirm(true)}><Trash2 className="size-4" aria-hidden /> Delete</Button>
           </div>

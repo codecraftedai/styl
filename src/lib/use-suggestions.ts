@@ -26,8 +26,11 @@ export function useSuggestions(occasion: Occasion, seed: number, withItem?: stri
   const tempC = now?.tempC ?? null;
 
   const list = useMemo(() => {
-    return suggest(items, { occasion, tempC, prefs, today: today(), seed, must: withItem ?? undefined }, 6);
+    // Laundry is a hard filter; a piece chosen with "Style it" is still allowed.
+    const clean = items.filter((i) => !prefs.laundry.includes(i.id) || i.id === withItem);
+    return suggest(clean, { occasion, tempC, prefs, today: today(), seed, must: withItem ?? undefined }, 6);
   }, [items, occasion, tempC, prefs, seed, withItem]);
 
-  return { list, missing: missingForSuggestions(items), weather: weatherOf(tempC, prefs.climate, prefs.tempFeel), now };
+  const missing = useMemo(() => missingForSuggestions(items.filter((i) => !prefs.laundry.includes(i.id))) && (missingForSuggestions(items) ?? "Most of your pieces are in the laundry. Mark some clean in your wardrobe."), [items, prefs.laundry]);
+  return { list, missing, weather: weatherOf(tempC, prefs.climate, prefs.tempFeel), now };
 }

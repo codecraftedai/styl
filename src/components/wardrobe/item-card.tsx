@@ -1,20 +1,23 @@
 "use client";
 
-import { Heart } from "lucide-react";
+import { Heart, WashingMachine } from "lucide-react";
 import { motion } from "motion/react";
 import type { Item } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { Swatch } from "@/components/ui/swatch";
 import { ItemImage } from "./item-image";
 
-type ItemCardProps = { item: Item; src?: string; onOpen: () => void; onToggleFavourite: () => void; index?: number };
+type ItemCardProps = { item: Item; src?: string; onOpen: () => void; onToggleFavourite: () => void; index?: number; inLaundry?: boolean };
 
-export function ItemCard({ item, src, onOpen, onToggleFavourite, index = 0 }: ItemCardProps) {
+export function ItemCard({ item, src, onOpen, onToggleFavourite, index = 0, inLaundry }: ItemCardProps) {
   return (
     <motion.article className="group relative"
       initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: Math.min(index, 12) * 0.035, ease: [0.22, 1, 0.36, 1] }}>
       <button type="button" onClick={onOpen} className="block w-full text-left">
-        <ItemImage src={src} alt={item.name} layoutId={`img-${item.id}`} className="rounded-lg transition-transform duration-500 ease-[var(--ease-lux)] group-hover:-translate-y-0.5 group-active:scale-[0.98]" />
+        <span className="relative block">
+          <ItemImage src={src} alt={item.name} layoutId={`img-${item.id}`} className={cn("rounded-lg transition-[transform,opacity] duration-500 ease-[var(--ease-lux)] group-hover:-translate-y-0.5 group-active:scale-[0.98]", inLaundry && "opacity-45")} />
+          {inLaundry && <span className="absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-surface/90 px-2 py-1 text-[10px] font-medium text-ink-2"><WashingMachine className="size-3" aria-hidden /> In laundry</span>}
+        </span>
         <div className="mt-2.5 flex items-start gap-2 px-0.5">
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-caption text-ink">{item.name}</h3>

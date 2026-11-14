@@ -99,3 +99,13 @@ describe("D11 temperature feel", () => {
     expect(weatherOf(20, "Mild", "Normal")).toBe("mild");
   });
 });
+
+describe("laundry", () => {
+  it("items in the laundry never appear (filtered before the engine, as use-suggestions does)", () => {
+    const w = wardrobe(80, 11);
+    const laundry = w.filter((_, k) => k % 3 === 0).map((i) => i.id);
+    const res = suggest(w.filter((i) => !laundry.includes(i.id)), ctx());
+    expect(res.length).toBeGreaterThan(0);
+    expect(res.every((s) => s.items.every((i) => !laundry.includes(i.id)))).toBe(true);
+  });
+});
