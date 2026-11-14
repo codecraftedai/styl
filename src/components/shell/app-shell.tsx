@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { setPendingPhoto } from "@/lib/pending-photo";
+import { setPendingPhotos } from "@/lib/pending-photo";
 import { AddSheet } from "./add-sheet";
 import { BottomNav } from "./bottom-nav";
 import { Guard } from "./guard";
@@ -11,7 +11,7 @@ import { SideRail } from "./side-rail";
 export function AppShell({ children }: { children: ReactNode }) {
   const [adding, setAdding] = useState(false);
   const router = useRouter();
-  const onPick = (f: File) => { setPendingPhoto(f); setAdding(false); router.push("/add"); };
+  const onPick = (f: File[]) => { setPendingPhotos(f); setAdding(false); router.push("/add"); };
   return (
     <Guard need="app">
       <div className="flex min-h-dvh">

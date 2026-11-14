@@ -11,17 +11,21 @@ import { toast } from "@/components/ui/toast";
 import { ItemForm, type ItemFields } from "@/components/wardrobe/item-form";
 import { analyse } from "@/lib/analysis";
 import { compress, dominantColours } from "@/lib/image";
-import { clearPendingPhoto, peekPendingPhoto } from "@/lib/pending-photo";
+import { clearPendingPhotos, peekPendingPhotos } from "@/lib/pending-photo";
+import { BatchAdd } from "@/components/wardrobe/batch-add";
 import { useStore } from "@/lib/store";
 
 type Stage = "pick" | "analysing" | "rejected" | "review" | "saved";
 const EASE = [0.22, 1, 0.36, 1] as const;
 const MAX_FILE = 25 * 1024 * 1024;
+const MAX_BATCH = 10; // free AI tiers read a few photos a minute; 10 keeps a batch to a few minutes
 
 export default function AddItem() {
   const { addItem, token, mode } = useStore();
   const router = useRouter();
-  const [pending] = useState(peekPendingPhoto);
+  const [initial] = useState(peekPendingPhotos);
+  const pending = initial?.length === 1 ? initial[0] : null;
+  const [batch, setBatch] = useState<File[] | null>(initial && initial.length > 1 ? initial.slice(0, MAX_BATCH) : null);
   const [stage, setStage] = useState<Stage>(pending ? "analysing" : "pick");
   const [preview, setPreview] = useState<string | null>(null);
   const [photo, setPhoto] = useState<Blob | null>(null);
@@ -60,10 +64,11 @@ export default function AddItem() {
   }
 
   useEffect(() => {
-    if (started.current || !pending) return;
+    if (started.current || !initial) return;
     started.current = true;
-    clearPendingPhoto();
-    process(pending);
+    clearPendingPhotos();
+    if (initial.length > MAX_BATCH) toast(`Added the first ${MAX_BATCH} photos. Add the rest in the next round.`);
+    if (pending) process(pending);
   }); // runs once; `started` guards StrictMode's double mount
 
   /** Re-run the AI check on the same photo; keeps whatever the user already typed if it fails again. */
@@ -90,10 +95,17 @@ export default function AddItem() {
     } finally { setSaving(false); }
   }
 
-  const reset = () => { setStage("pick"); setPhoto(null); setFields(null); setPreview(null); setIssue(null); };
+  const reset = () => { setBatch(null); setStage("pick"); setPhoto(null); setFields(null); setPreview(null); setIssue(null); };
+  function pickMany(files: File[]) {
+    const ok = files.filter((f) => f.size <= MAX_FILE);
+    if (ok.length < files.length) toast("Skipped photos over 25 MB.", "error");
+    if (ok.length > MAX_BATCH) toast(`Added the first ${MAX_BATCH} photos. Add the rest in the next round.`);
+    if (ok.length === 1) start(ok[0]);
+    else if (ok.length > 1) setBatch(ok.slice(0, MAX_BATCH));
+  }
   const pickInput = (capture: boolean) => (
-    <input type="file" accept="image/*" capture={capture ? "environment" : undefined} className="sr-only"
-      onChange={(e) => { const f = e.target.files?.[0]; if (f) start(f); e.target.value = ""; }} />
+    <input type="file" accept="image/*" capture={capture ? "environment" : undefined} multiple={!capture} className="sr-only"
+      onChange={(e) => { pickMany([...(e.target.files ?? [])]); e.target.value = ""; }} />
   );
 
   return (
@@ -101,17 +113,19 @@ export default function AddItem() {
       <div className="mx-auto min-h-dvh max-w-2xl pt-safe">
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between bg-ivory/85 px-4 backdrop-blur-md">
           <button type="button" onClick={() => router.back()} aria-label="Close" className="flex size-11 items-center justify-center rounded-full hover:bg-stone"><X className="size-5" /></button>
-          <p className="text-label uppercase text-ink-3">{stage === "review" ? "Check the details" : "Add to wardrobe"}</p>
+          <p className="text-label uppercase text-ink-3">{batch || stage === "review" ? "Check the details" : "Add to wardrobe"}</p>
           <span className="size-11" />
         </header>
 
+        {batch ? <BatchAdd key={batch.map((f) => f.name + f.size).join()} files={batch} onReset={reset} /> : (
         <AnimatePresence mode="wait">
           {stage === "pick" && (
             <motion.div key="pick" exit={{ opacity: 0 }} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ease: EASE }} className="px-6 pt-6">
-              <h1 className="font-display text-title">One piece, <em>clear photo</em>.</h1>
+              <h1 className="font-display text-title">Clear photos, <em>one piece each</em>.</h1>
               <ul className="mt-4 flex flex-col gap-1.5 text-caption text-ink-3">
                 <li>Lay it flat or hang it, on a plain background.</li>
                 <li>Good daylight, no flash. Whole item in frame.</li>
+                <li>Pick up to {MAX_BATCH} photos at once from your library.</li>
               </ul>
               <div className="mt-8 grid gap-3 sm:grid-cols-2">
                 {[{ icon: Camera, t: "Take a photo", c: true }, { icon: Images, t: "Choose from library", c: false }].map(({ icon: Icon, t, c }) => (
@@ -199,8 +213,9 @@ export default function AddItem() {
             </motion.div>
           )}
         </AnimatePresence>
+        )}
 
-        {stage === "review" && (
+        {!batch && stage === "review" && (
           <div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-ivory via-ivory to-transparent px-6 pt-10 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             <div className="mx-auto flex max-w-2xl gap-3">
               <Button variant="secondary" size="lg" onClick={reset}>Retake</Button>

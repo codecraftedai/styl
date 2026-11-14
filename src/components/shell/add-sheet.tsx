@@ -3,7 +3,7 @@
 import { Camera, Images } from "lucide-react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 
-type AddSheetProps = { open: boolean; onClose: () => void; onPick: (file: File) => void };
+type AddSheetProps = { open: boolean; onClose: () => void; onPick: (files: File[]) => void };
 
 const ACCEPT = "image/*";
 
@@ -20,8 +20,9 @@ export function AddSheet({ open, onClose, onPick }: AddSheetProps) {
         type="file"
         accept={ACCEPT}
         capture={capture ? "environment" : undefined}
+        multiple={!capture}
         className="sr-only"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.target.value = ""; }}
+        onChange={(e) => { const f = [...(e.target.files ?? [])]; if (f.length) onPick(f); e.target.value = ""; }}
       />
     </label>
   );
@@ -30,7 +31,7 @@ export function AddSheet({ open, onClose, onPick }: AddSheetProps) {
       <p className="mb-4 text-caption text-ink-3">Lay the item flat or hang it in good light. Clear photo, one item, plain background. We&apos;ll read the rest.</p>
       <div className="flex flex-col gap-3">
         {option(<Camera className="size-5" aria-hidden />, "Take a photo", "Use your camera", true)}
-        {option(<Images className="size-5" aria-hidden />, "Choose from library", "Pick a photo you already took")}
+        {option(<Images className="size-5" aria-hidden />, "Choose from library", "Pick one or several photos (up to 10)")}
       </div>
     </BottomSheet>
   );
