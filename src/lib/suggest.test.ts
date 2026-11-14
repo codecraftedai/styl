@@ -27,9 +27,11 @@ describe("suggest", () => {
     expect(s.items.some((i) => i.slot === "outer")).toBe(true);
   });
 
-  it("does not repeat the same top across suggestions", () => {
+  it("never returns the same outfit twice, but lets a small wardrobe reuse a top", () => {
     const items = [item({}), item({ slot: "bottom" }), item({ slot: "bottom", colours: ["denim"] })];
-    expect(suggest(items, ctx)).toHaveLength(1);
+    const res = suggest(items, ctx);
+    expect(res).toHaveLength(2);
+    expect(new Set(res.map((s) => s.items.map((i) => i.id).sort().join())).size).toBe(2);
   });
 
   it("avoids clashing colours and avoided colours", () => {

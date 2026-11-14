@@ -47,11 +47,11 @@ export default function Home() {
   const { profile, items, urls, outfits } = useStore();
   const occasions = useOccasions();
   const [occasion, setOccasion] = useState(() => defaultOccasion(occasions, profile?.prefs.occasions ?? []));
-  const [seed, setSeed] = useState(1);
+  const [pick, setPick] = useState(0); // Shuffle steps through the ranked, already-diverse list
   const [openId, setOpenId] = useState<string | null>(null);
   const close = useCallback(() => setOpenId(null), []);
-  const { list, missing, weather, now } = useSuggestions(occasion, seed);
-  const top = list[0];
+  const { list, missing, weather, now } = useSuggestions(occasion, 1);
+  const top = list.length ? list[pick % list.length] : undefined;
   const open = items.find((i) => i.id === openId);
 
   const recent = items.slice(0, 10);
@@ -91,13 +91,13 @@ export default function Home() {
       ) : (
         <section className="mt-8">
           <div className="flex items-center gap-3">
-            <div className="min-w-0 flex-1"><OccasionBar list={occasions} value={occasion} onChange={(o) => { setOccasion(o); setSeed(1); }} /></div>
-            <IconButton label="Another option" icon={<Shuffle className="size-[18px]" />} onClick={() => setSeed((s) => s + 1)} />
+            <div className="min-w-0 flex-1"><OccasionBar list={occasions} value={occasion} onChange={(o) => { setOccasion(o); setPick(0); }} /></div>
+            <IconButton label="Another option" icon={<Shuffle className="size-[18px]" />} onClick={() => setPick((x) => x + 1)} disabled={list.length < 2} />
           </div>
           <div className="mt-5 md:grid md:grid-cols-[minmax(0,420px)_1fr] md:items-start md:gap-10">
             <AnimatePresence mode="wait">
               <motion.div key={top ? top.items.map((i) => i.id).join() : "none"} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.35, ease: EASE }}>
-                {top ? <SuggestionCard s={top} occasion={occasion} index={0} /> : <p className="rounded-xl bg-stone p-6 text-ink-2">Nothing fits {occasion.toLowerCase()} yet. Try another occasion.</p>}
+                {top ? <SuggestionCard s={top} occasion={occasion} index={pick % list.length} /> : <p className="rounded-xl bg-stone p-6 text-ink-2">Nothing fits {occasion.toLowerCase()} yet. Try another occasion.</p>}
               </motion.div>
             </AnimatePresence>
             <div className="mt-10 hidden md:mt-0 md:block">
