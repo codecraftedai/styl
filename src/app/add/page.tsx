@@ -162,7 +162,7 @@ export default function AddItem() {
               {stage === "analysing" ? (
                 <div className="mt-8 text-center" role="status">
                   <p className="flex items-center justify-center gap-2 font-display text-heading"><Sparkles className="size-4" aria-hidden /> Reading your piece</p>
-                  <p className="mt-1 text-caption text-ink-3">Colour, type, dressiness, season…</p>
+                  <p className="mt-1 text-caption text-ink-3">Colour, type, dressiness, season… this can take up to a minute.</p>
                 </div>
               ) : fields && (
                 <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, ease: EASE }} className="mt-8">

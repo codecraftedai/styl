@@ -7,6 +7,9 @@ import { PATTERNS } from "@/lib/analysis";
 // The main model is listed twice: a 503 "high demand" usually clears on a quick retry.
 const MODELS = [process.env.GEMINI_MODEL, "gemini-3.8-flash", "gemini-3.8-flash", "gemini-flash-latest", "gemini-3.5-flash"].filter((m): m is string => !!m);
 const MAX_BYTES = 4 * 1024 * 1024;
+// Vercel Hobby allows up to 60s; the retry loop below stays inside this budget.
+export const maxDuration = 60;
+const BUDGET_MS = 50_000;
 
 const PROMPT = `You are a fashion cataloguer for a personal wardrobe app. First decide if the photo is usable.
 "wearable": true only if the main subject is a real garment, footwear, bag or fashion accessory. Posters, screenshots, text, logos, food, rooms, pets, selfies where clothing is not the focus, and drawings are false.
@@ -53,24 +56,38 @@ export async function POST(req: Request) {
     return Response.json({ error: "Send one image under 4 MB" }, { status: 400 });
   }
 
-  const body = JSON.stringify({
-    contents: [{ parts: [{ text: PROMPT }, { inline_data: { mime_type: photo.type, data: Buffer.from(await photo.arrayBuffer()).toString("base64") } }] }],
-    generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.2 },
+  const image = { inline_data: { mime_type: photo.type, data: Buffer.from(await photo.arrayBuffer()).toString("base64") } };
+  const bodyFor = (model: string) => JSON.stringify({
+    contents: [{ parts: [{ text: PROMPT }, image] }],
+    generationConfig: {
+      responseMimeType: "application/json", responseSchema: schema, temperature: 0.2,
+      // Tagging doesn't need deep reasoning; low thinking cuts latency a lot on Gemini 3 models.
+      ...(model.startsWith("gemini-2") ? {} : { thinkingConfig: { thinkingLevel: "low" } }),
+    },
   });
+
+  const started = Date.now();
   let res: Response | null = null;
-  for (const model of MODELS) {
+  for (const [i, model] of MODELS.entries()) {
+    if (i > 0) await new Promise((r) => setTimeout(r, Math.min(2_000 * i, 6_000))); // back off: busy models often recover in seconds
+    const left = BUDGET_MS - (Date.now() - started);
+    if (left < 5_000) break;
     res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": key },
-      body,
-      signal: AbortSignal.timeout(20_000),
+      body: bodyFor(model),
+      signal: AbortSignal.timeout(left),
     }).catch(() => null);
     if (res?.ok) break;
     // 400/401/403 = our request or key is wrong; another model won't fix it.
     if (res && [400, 401, 403].includes(res.status)) break;
   }
 
-  if (!res?.ok) return Response.json({ error: "Analysis failed" }, { status: 502 });
+  if (!res?.ok) {
+    // Upstream status helps debugging from the browser network tab; no secrets in it.
+    const detail = res ? `${res.status} ${(await res.text().catch(() => "")).slice(0, 160)}` : "timeout";
+    return Response.json({ error: "Analysis failed", detail }, { status: 502 });
+  }
   try {
     const data = await res.json();
     const parts: { text?: string; thought?: boolean }[] = data.candidates[0].content.parts;
