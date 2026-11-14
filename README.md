@@ -21,7 +21,7 @@ With no `.env.local`, Styl runs in **demo mode**: everything is saved in that br
 |---|---|---|
 | App hosting | Vercel Hobby | personal use |
 | Login, database, photo storage | Supabase Free | 500 MB database, 1 GB photos (~5,000 photos) |
-| Photo check + auto-fill | Google Gemini (AI Studio key) | daily free quota; Google may use free-tier inputs to improve its models |
+| Photo check + auto-fill | Groq (main, fast) + Google Gemini (backup) | daily free quota; Google may use free-tier inputs to improve its models |
 | Weather | Open-Meteo | no key needed |
 | Outfit suggestions | Styl's own rules (`src/lib/suggest.ts`) | runs in the browser, no cost |
 
@@ -39,6 +39,10 @@ With no `.env.local`, Styl runs in **demo mode**: everything is saved in that br
 ### 2. Gemini key (photo check + auto-fill)
 1. aistudio.google.com → **Get API key** → Create key. No billing needed.
 2. This is what blocks non-clothing photos (posters, screenshots) and fills in name, category, colours, pattern, dressiness, season and style automatically.
+
+### 2b. Groq key (main photo check, fast)
+1. console.groq.com/keys → Create API key. Free, no card.
+2. Add it as `GROQ_API_KEY` (in `.env.local` and in Vercel).
 
 ### 3. Local test with real keys
 Copy `.env.example` to `.env.local`, fill in the three values, restart `pnpm dev`.

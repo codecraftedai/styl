@@ -32,7 +32,7 @@ export function sanitise(raw: Record<string, unknown>, fallbackColours: string[]
   const colourIds = COLOURS.map((c) => c.id);
   const colours = (Array.isArray(raw.colours) ? raw.colours : []).filter((c): c is string => colourIds.includes(c)).slice(0, 3);
   return {
-    name: typeof raw.name === "string" && raw.name.trim() ? raw.name.trim().slice(0, 60) : "New piece",
+    name: typeof raw.name === "string" && raw.name.trim() ? raw.name.trim().slice(0, 60) : `${COLOURS.find((c) => c.id === (colours[0] ?? fallbackColours[0]))?.label ?? "New"} piece`,
     category,
     slot: pick(raw.slot, SLOTS, DEFAULT_SLOT[category]),
     colours: colours.length ? colours : fallbackColours,

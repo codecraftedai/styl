@@ -2,14 +2,19 @@ import { CATEGORIES, FORMALITY, SEASONS, SLOTS, STYLES } from "@/lib/types";
 import { COLOURS } from "@/lib/colours";
 import { PATTERNS } from "@/lib/analysis";
 
-// Free tier: Google AI Studio key (no billing). Returns 501 when not configured; the client then falls back to on-device colours.
-// Google retires models for new keys and busy models return 503, so try a short list in order.
+// Photo check + auto-fill. Providers (both free tiers), tried in order:
+//   1. Groq (GROQ_API_KEY): fast vision model, usually 1-3 s.
+//   2. Gemini (GEMINI_API_KEY): backup; slower and often busy for new keys.
+// Returns 501 when neither is configured; the client then falls back to on-device colours.
+// Google retires models for new keys and busy models return 503, so Gemini tries a short list in order.
 // The main model is listed twice: a 503 "high demand" usually clears on a quick retry.
 const MODELS = [process.env.GEMINI_MODEL, "gemini-3.8-flash", "gemini-3.8-flash", "gemini-flash-latest", "gemini-3.5-flash"].filter((m): m is string => !!m);
 const MAX_BYTES = 4 * 1024 * 1024;
 // Vercel Hobby allows up to 60s; the retry loop below stays inside this budget.
 export const maxDuration = 60;
 const BUDGET_MS = 50_000;
+const GROQ_MODEL = process.env.GROQ_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
+const GROQ_TIMEOUT_MS = 15_000;
 
 const PROMPT = `You are a fashion cataloguer for a personal wardrobe app. First decide if the photo is usable.
 "wearable": true only if the main subject is a real garment, footwear, bag or fashion accessory. Posters, screenshots, text, logos, food, rooms, pets, selfies where clothing is not the focus, and drawings are false.
@@ -36,6 +41,37 @@ const schema = {
   required: ["wearable", "problem", "name", "category", "slot", "colours", "pattern", "formality", "season", "styles"],
 };
 
+// Groq has no response schema, so the allowed values go in the prompt; sanitise() on the client coerces anything off-list.
+const GROQ_PROMPT = `${PROMPT}
+Reply with one JSON object only, with exactly these keys:
+wearable (boolean), problem (string), name (string),
+category: one of ${CATEGORIES.join(", ")};
+slot: one of ${SLOTS.join(", ")};
+colours: array of 1-3 from ${COLOURS.map((c) => c.id).join(", ")};
+pattern: one of ${PATTERNS.join(", ")};
+formality: one of ${FORMALITY.join(", ")};
+season: one of ${SEASONS.join(", ")};
+styles: array of 0-3 from ${STYLES.join(", ")}.`;
+
+async function viaGroq(key: string, mime: string, b64: string): Promise<unknown | null> {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: [{ type: "text", text: GROQ_PROMPT }, { type: "image_url", image_url: { url: `data:${mime};base64,${b64}` } }] }],
+    }),
+    signal: AbortSignal.timeout(GROQ_TIMEOUT_MS),
+  }).catch(() => null);
+  if (!res?.ok) {
+    console.error("Groq analysis failed", res?.status ?? "timeout", res ? (await res.text().catch(() => "")).slice(0, 500) : "");
+    return null;
+  }
+  try { return JSON.parse((await res.json()).choices[0].message.content); } catch { return null; }
+}
+
 /** In cloud mode only signed-in users may spend the Gemini quota. */
 async function signedIn(req: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL, anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -47,8 +83,8 @@ async function signedIn(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return Response.json({ error: "Analysis not configured" }, { status: 501 });
+  const key = process.env.GEMINI_API_KEY, groqKey = process.env.GROQ_API_KEY;
+  if (!key && !groqKey) return Response.json({ error: "Analysis not configured" }, { status: 501 });
   if (!(await signedIn(req))) return Response.json({ error: "Sign in first" }, { status: 401 });
 
   const photo = (await req.formData()).get("photo");
@@ -56,7 +92,15 @@ export async function POST(req: Request) {
     return Response.json({ error: "Send one image under 4 MB" }, { status: 400 });
   }
 
-  const image = { inline_data: { mime_type: photo.type, data: Buffer.from(await photo.arrayBuffer()).toString("base64") } };
+  const b64 = Buffer.from(await photo.arrayBuffer()).toString("base64");
+  const started = Date.now();
+  if (groqKey) {
+    const out = await viaGroq(groqKey, photo.type, b64);
+    if (out) return Response.json(out);
+  }
+  if (!key) return Response.json({ error: "Analysis failed" }, { status: 502 });
+
+  const image = { inline_data: { mime_type: photo.type, data: b64 } };
   const bodyFor = (model: string) => JSON.stringify({
     contents: [{ parts: [{ text: PROMPT }, image] }],
     generationConfig: {
@@ -66,7 +110,6 @@ export async function POST(req: Request) {
     },
   });
 
-  const started = Date.now();
   let res: Response | null = null;
   for (const [i, model] of MODELS.entries()) {
     if (i > 0) await new Promise((r) => setTimeout(r, Math.min(2_000 * i, 6_000))); // back off: busy models often recover in seconds
