@@ -69,7 +69,18 @@ async function viaGroq(key: string, mime: string, b64: string): Promise<unknown 
     console.error("Groq analysis failed", res?.status ?? "timeout", res ? (await res.text().catch(() => "")).slice(0, 500) : "");
     return null;
   }
-  try { return JSON.parse((await res.json()).choices[0].message.content); } catch { return null; }
+  const content: string = (await res.json().catch(() => null))?.choices?.[0]?.message?.content ?? "";
+  const parsed = parseJsonObject(content);
+  if (!parsed) console.error("Groq returned unparseable content", content.slice(0, 300));
+  return parsed;
+}
+
+/** Models sometimes wrap JSON in <think> blocks or code fences; take the outermost {...}. */
+function parseJsonObject(text: string): unknown | null {
+  const t = text.replace(/<think>[\s\S]*?<\/think>/g, "");
+  const start = t.indexOf("{"), end = t.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try { return JSON.parse(t.slice(start, end + 1)); } catch { return null; }
 }
 
 /** In cloud mode only signed-in users may spend the Gemini quota. */
@@ -95,8 +106,10 @@ export async function POST(req: Request) {
   const b64 = Buffer.from(await photo.arrayBuffer()).toString("base64");
   const started = Date.now();
   if (groqKey) {
-    const out = await viaGroq(groqKey, photo.type, b64);
-    if (out) return Response.json(out);
+    for (let attempt = 0; attempt < 2; attempt++) { // one quick retry: free-tier hiccups usually clear immediately
+      const out = await viaGroq(groqKey, photo.type, b64);
+      if (out) return Response.json(out);
+    }
   }
   if (!key) return Response.json({ error: "Analysis failed" }, { status: 502 });
 
