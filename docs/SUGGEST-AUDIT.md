@@ -166,3 +166,43 @@ UI change: Home "Shuffle" now steps through the ranked, diverse list (always a d
 **Stylist rating of the top looks** (my judgement): before, 4–9/10, with an average around 6.5 and identical across occasions. After: 7–9/10, and occasion-specific (e.g. Party leads with black shirt + dark denim + leather; Casual with dark green shirt + light-wash + white sneakers).
 
 **Known limits:** shade still depends on the colour/name the AI gives; one pair of smart shoes in the wardrobe means it repeats; fit and silhouette (wide-leg vs slim) aren't recorded, so the engine can't judge proportions.
+
+## 9. Same shoes and same watch in every look (35 pieces, menswear, 2026-11-15)
+
+Fixture: `src/lib/__audit__/real-wardrobe.ts` (9 shirts, 8 bottoms, 6 shoes, 9 watches, 3 sunglasses). Tests: "finishing pieces rotate" in `suggest.constraints.test.ts`.
+
+**Finding:** six looks, one pair of sneakers and one watch across all of them. Shoes and accessories were chosen per look by score alone; five white sneakers and nine watches scored the same, so the first by id won every time. Only one bag *or* accessory was allowed, so a watch and sunglasses never appeared together. Shuffle barely changed anything: consecutive seeds gave the LCG nearly identical first numbers.
+
+**Changes** (`suggest.ts`):
+- `finishing()`: rules that tell finishing pieces apart. A shoe trim, dial or strap that repeats a colour of the clothes (+); gold / tan with warm tops, steel with cool tops (+, half as a penalty when crossed); black shoes or a black watch under a dark look (+); black shoes under light jeans without a black top (−); gold next to silver (−).
+- Rotation: each look after the first is re-finished with a capped penalty for shoes / bags / accessories that earlier looks already wear (`W.rotate`).
+- `kind()`: accessory type read from the name. One accessory per kind, up to 2 extras for "Sometimes" and 3 for "Always". No sunglasses for Party, Date night or Gym.
+- Overlap between looks is measured on the clothes only and costs more (`W.overlap` 2), so 6 looks use at least 5 different shirts.
+- Navy on dark-blue denim costs double the dark-on-dark penalty; sweatpants count as casual like ripped jeans; a formal watch is not penalised on an evening out; Party favours a deep colour on top.
+- Formality spread ignores accessories (a dress watch with jeans is normal).
+- Equal pieces take turns by day (tie-break hashed with the date); the Shuffle seed is hashed.
+- Worn today is no longer penalised, so the look just logged with "Wear this" stays on screen; the rest penalty starts the next day.
+
+**Result on the fixture** (Casual / Work / Date night / Party, 6 looks each): 1 pair of shoes and 1 watch before; at least 4 different shoes, 4 different watches and 5 different shirts after.
+
+**Known limits:** the rules depend on the colour order auto-fill gives (case or strap first, dial second; the prompt now asks for this, older pieces may need an edit). Accessory type comes from the name.
+
+## 2026-11-17: scores, honest Best match, specific reasons, stylist tip, learning from saves
+
+Files: `src/lib/suggest-rules.ts` (rules, each credits a named factor), `src/lib/suggest-explain.ts` (0–10 scale, reason text, tip), `src/lib/suggest.ts` (pipeline).
+Validation: `src/lib/suggest.validation.test.ts`; reference looks in `src/lib/__audit__/reference-looks.ts`.
+
+| # | Change | Root cause in code | Trade-off |
+|---|---|---|---|
+| S1 | Every rule credits one factor (colour, occasion, style, footwear, balance, taste, learned, recency). `FACTOR_WEIGHT` is the one place to re-weight. | Score was one unlabelled sum. | Weights all 1 reproduce the previous ranking; changing them is a hypothesis to re-validate. |
+| S2 | Stylist score 0–10 = `2.9 + 0.65 ×` the five stylist factors, soft ceiling above 8.5. Taste, learned and rotation are excluded. | Raw points had no fixed scale. | Fitted on 9 subjective references: mean error 0.6, Spearman 0.7. Small sample; refit as more stylist ratings arrive. |
+| S3 | Verdict on the highest-scoring card only: "Best match" at ≥ 7, else "Best available". Card 1 says "Top pick for you" if taste put it first. | Card 1 was always "Best match". | Threshold 7 sits between the weakest reference (5.5 → 6.3) and the accepted ones. |
+| S4 | Reasons rendered from reason codes with the actual piece names: one colour, one occasion, one shoes/shape line, plus one personal line. | Notes were fixed phrases ("Clean neutral palette", "Right level of dressy…"). | More text per card; the personal line gets its own slot. |
+| S5 | Stylist tip = the single swap with an owned piece that adds ≥ 0.6 points, named by the factor it helps; or plain advice (two prints, warm piece in heat). | No tips. | Searches the top 12 candidates per spot only. |
+| S6 | Saved looks: pieces saved together get +0.3 per pair (cap 0.9). Read once per screen visit. | Saves never fed back. | Capped below one explicit preference; never affects the stylist score. |
+| S7 | Rules fixed after the reference check: jeans never cause a style clash; leather boots suit any denim; smart occasions prefer dark denim (daytime bonus, light-wash penalty; evenings use the palette rule only). | Auto-fill tags jeans "Streetwear", so classic shirt + jeans lost 0.8; mid-blue jeans + boots lost 0.4. | Changes rankings on purpose (e.g. light jeans drop for work). |
+| S8 | Ties: comparisons ignore differences < 1e-9, then fall back to a stable order. | Float noise (≈1e-15) decided 60/126 snapshot ties. | None. |
+| S9 | Speed: lean ranking score (no breakdown objects), per-item caches for name tests and shade. | | 1000 items: 49 → 16 ms; 35 items: 9 → 5 ms (Node, M-series). The last committed engine (simpler pipeline) ran 6 ms. |
+
+Not done (by design): occasion sub-types, material/silhouette fields (no UI or data for them yet), analytics for save/accept rates (no event tracking exists).
+Known disagreement: green tie-dye + cargos + sneakers rates 8.2 vs reference 7.5. There is no "visual busyness" rule, and the brief asks not to penalise streetwear for being bold.

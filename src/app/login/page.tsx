@@ -46,7 +46,7 @@ function Login() {
             {[false, true].map((v) => (
               <button key={String(v)} role="tab" aria-selected={isNew === v} type="button" onClick={() => { setIsNew(v); setError(""); }}
                 className={cn("relative z-10 h-10 rounded-full text-caption font-medium transition-colors", isNew === v ? "text-ink" : "text-ink-3 hover:text-ink-2")}>
-                {isNew === v && <motion.span layoutId="auth-tab" className="absolute inset-0 -z-10 rounded-full bg-surface shadow-card" transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
+                {isNew === v && <motion.span layoutId="auth-tab" className="absolute inset-0 -z-10 rounded-full bg-line" transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
                 {v ? "Create account" : "Sign in"}
               </button>
             ))}

@@ -24,6 +24,8 @@ create table if not exists items (
   favourite boolean not null default false,
   wear_count int not null default 0,
   last_worn date,
+  lightness real,          -- 0 dark … 1 light, measured from the photo on device
+  fit text,                -- slim | regular | relaxed | wide
   created_at timestamptz not null default now()
 );
 create index if not exists items_user on items (user_id, created_at desc);
@@ -58,3 +60,7 @@ drop policy if exists "own photos" on storage.objects;
 create policy "own photos" on storage.objects for all
   using (bucket_id = 'wardrobe' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'wardrobe' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Migration for projects created before 2026-11-14 (safe to re-run):
+alter table items add column if not exists lightness real;
+alter table items add column if not exists fit text;

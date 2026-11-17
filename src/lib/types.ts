@@ -8,6 +8,9 @@ export type Slot = (typeof SLOTS)[number];
 export const FORMALITY = ["casual", "smart", "formal"] as const;
 export type Formality = (typeof FORMALITY)[number];
 
+export const FITS = ["slim", "regular", "relaxed", "wide"] as const;
+export type Fit = (typeof FITS)[number];
+
 export const SEASONS = ["summer", "winter", "all"] as const;
 export type Season = (typeof SEASONS)[number];
 
@@ -39,6 +42,10 @@ export type Item = {
   favourite: boolean;
   wearCount: number;
   lastWorn: string | null; // yyyy-mm-dd
+  /** 0 dark … 1 light, measured from the photo on device (null until measured). */
+  lightness: number | null;
+  /** Silhouette from the AI or the user (null = unknown). */
+  fit: Fit | null;
   createdAt: string;
 };
 
@@ -49,6 +56,9 @@ export const PRINT_LOVE = ["Love them", "Sometimes", "Rarely"] as const;
 export const UNDERTONES = ["Warm", "Cool", "Neutral", "Not sure"] as const;
 export const TEMP_FEEL = ["I feel the cold", "Normal", "I feel the heat"] as const;
 export const ACCESSORY_LOVE = ["Always", "Sometimes", "Rarely"] as const;
+/** The season the user says it is. "Auto" = live weather, else the climate's usual weather for the month. */
+export const SEASON_MODES = ["Auto", "Summer", "Monsoon", "Winter", "Pleasant"] as const;
+export type SeasonMode = (typeof SEASON_MODES)[number];
 
 export type Prefs = {
   wear: Wear; // which clothes they shop/dress in; tunes copy and style examples
@@ -66,6 +76,8 @@ export type Prefs = {
   undertone: (typeof UNDERTONES)[number];
   tempFeel: (typeof TEMP_FEEL)[number];
   accessories: (typeof ACCESSORY_LOVE)[number];
+  /** Overrides the weather when not "Auto". Optional so profiles saved before it existed still load (merged with EMPTY_PREFS). */
+  currentSeason: SeasonMode;
 };
 
 export type Profile = { name: string; prefs: Prefs; onboarded: boolean };
@@ -73,5 +85,5 @@ export type Profile = { name: string; prefs: Prefs; onboarded: boolean };
 export type Outfit = { id: string; name: string; itemIds: string[]; occasion: Occasion; createdAt: string };
 
 export const EMPTY_PREFS: Prefs = { wear: "Both", styles: [], occasions: [], loveColours: [], avoidColours: [], climate: "Hot", liveWeather: false,
-  dressCode: "Business casual", boldness: "Balanced", prints: "Sometimes", undertone: "Not sure", tempFeel: "Normal", accessories: "Sometimes", laundry: [],
+  dressCode: "Business casual", boldness: "Balanced", prints: "Sometimes", undertone: "Not sure", tempFeel: "Normal", accessories: "Sometimes", laundry: [], currentSeason: "Auto",
 };

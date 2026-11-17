@@ -22,10 +22,10 @@ export function SavedList({ onBuild }: { onBuild: () => void }) {
     <>
       <div className="grid grid-cols-2 gap-x-3 gap-y-6 md:grid-cols-3 lg:grid-cols-4">
         {outfits.map((o) => (
-          <button key={o.id} type="button" onClick={() => setOpen(o)} className="text-left transition-transform active:scale-[0.98]">
+          <button key={o.id} type="button" onClick={() => setOpen(o)} className="rounded-lg text-left transition-transform active:scale-[0.98]">
             <Collage items={piecesOf(o)} urls={urls} size="sm" />
-            <p className="mt-2 truncate text-caption">{o.name}</p>
-            <p className="text-[11px] text-ink-3">{o.occasion} · {o.itemIds.length} pieces</p>
+            <p className="mt-2.5 truncate px-1 text-caption font-medium">{o.name}</p>
+            <p className="px-1 text-[12px] text-ink-3">{o.occasion} · {o.itemIds.length} pieces</p>
           </button>
         ))}
       </div>

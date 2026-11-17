@@ -15,10 +15,10 @@ export function SearchField({ value, onClear, ...rest }: SearchFieldProps) {
         aria-label="Search wardrobe"
         value={value}
         {...rest}
-        className="h-12 w-full rounded-full border border-line bg-surface pr-12 pl-11 text-body placeholder:text-ink-3 hover:border-ink-3 focus:border-ink focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+        className="h-12 w-full rounded-full border border-transparent bg-stone pr-12 pl-11 text-body text-ink placeholder:text-ink-3 transition-colors hover:border-line focus:border-ink-3 focus:outline-none [&::-webkit-search-cancel-button]:hidden"
       />
       {value && (
-        <button type="button" onClick={onClear} aria-label="Clear search" className="absolute top-1/2 right-1 flex size-10 -translate-y-1/2 items-center justify-center rounded-full text-ink-3 hover:bg-stone hover:text-ink">
+        <button type="button" onClick={onClear} aria-label="Clear search" className="absolute top-1/2 right-1 flex size-10 -translate-y-1/2 items-center justify-center rounded-full text-ink-3 hover:bg-line hover:text-ink">
           <X className="size-4" />
         </button>
       )}

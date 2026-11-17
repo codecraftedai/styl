@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { ItemForm, type ItemFields } from "@/components/wardrobe/item-form";
 import { analyse } from "@/lib/analysis";
-import { compress, dominantColours } from "@/lib/image";
+import { compress, dominantColours, measureLightness } from "@/lib/image";
 import { clearPendingPhotos, peekPendingPhotos } from "@/lib/pending-photo";
 import { BatchAdd } from "@/components/wardrobe/batch-add";
 import { useStore } from "@/lib/store";
@@ -48,14 +48,15 @@ export default function AddItem() {
       const small = await compress(file);
       setPhoto(small);
       setPreview(URL.createObjectURL(small));
-      const [a] = await Promise.all([
+      const [a, lightness] = await Promise.all([
         dominantColours(small).then(async (cols) => analyse(small, cols, await token())),
+        measureLightness(small).catch(() => null),
         new Promise((r) => setTimeout(r, 1400)), // let the scan finish one pass: feels deliberate, not glitchy
       ]);
       setAiUsed(a.source === "ai");
       if (a.rejected) { setIssue(a.rejected); setStage("rejected"); return; }
       setIssue(a.warning);
-      setFields({ name: a.name, category: a.category, slot: a.slot, colours: a.colours, pattern: a.pattern, formality: a.formality, season: a.season, styles: a.styles, brand: "", notes: "" });
+      setFields({ name: a.name, category: a.category, slot: a.slot, colours: a.colours, pattern: a.pattern, formality: a.formality, season: a.season, styles: a.styles, brand: "", notes: "", lightness, fit: a.fit });
       setStage("review");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Couldn't read that photo.", "error");
@@ -81,7 +82,7 @@ export default function AddItem() {
     setAiUsed(true);
     if (a.rejected) { setIssue(a.rejected); setStage("rejected"); return; }
     setIssue(a.warning);
-    setFields({ ...fields, name: a.name, category: a.category, slot: a.slot, colours: a.colours, pattern: a.pattern, formality: a.formality, season: a.season, styles: a.styles });
+    setFields({ ...fields, name: a.name, category: a.category, slot: a.slot, colours: a.colours, pattern: a.pattern, formality: a.formality, season: a.season, styles: a.styles, fit: a.fit ?? fields.fit });
   }
 
   async function save() {

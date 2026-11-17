@@ -13,15 +13,15 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variants: Record<Variant, string> = {
-  primary: "bg-ink text-on-ink hover:opacity-90",
-  secondary: "bg-surface text-ink border border-line hover:border-ink-3",
+  primary: "bg-ink text-on-ink hover:bg-ink/90",
+  secondary: "bg-stone text-ink hover:bg-line",
   ghost: "text-ink hover:bg-stone",
-  danger: "bg-surface text-danger border border-line hover:border-danger",
+  danger: "bg-danger/10 text-danger hover:bg-danger/20",
 };
 
 const sizes: Record<Size, string> = {
-  md: "h-11 px-5 text-body",
-  lg: "h-13 px-7 text-body",
+  md: "h-12 px-6 text-body",
+  lg: "h-14 px-8 text-body",
 };
 
 export function Button({ variant = "primary", size = "md", loading, block, disabled, className, children, ...rest }: ButtonProps) {
@@ -31,7 +31,7 @@ export function Button({ variant = "primary", size = "md", loading, block, disab
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full font-medium tracking-wide",
+        "inline-flex items-center justify-center gap-2 rounded-full font-semibold",
         "transition-[opacity,transform,border-color,background-color] duration-200 active:scale-[0.98]",
         "disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100",
         variants[variant],

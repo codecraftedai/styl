@@ -4,7 +4,7 @@ let n = 0;
 export const item = (p: Partial<Item>): Item => ({
   id: `i${++n}`, imagePath: "", name: p.name ?? `item${n}`, category: "Tops", slot: "top", colours: ["black"], pattern: "Solid",
   formality: "smart", season: "all", styles: [], brand: "", notes: "", favourite: false, wearCount: 0, lastWorn: null,
-  createdAt: "2026-11-01", ...p,
+  createdAt: "2026-11-01", lightness: null, fit: null, ...p,
 });
 export const prefs = (p: Partial<Prefs> = {}): Prefs => ({ ...EMPTY_PREFS, styles: ["Classic", "Minimal"], loveColours: ["black", "navy", "beige"], ...p });
 export const ctx = (p: Partial<Prefs> = {}, extra: Record<string, unknown> = {}) => ({

@@ -16,7 +16,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <Guard need="app">
       <div className="flex min-h-dvh">
         <SideRail onAdd={() => setAdding(true)} />
-        <main className="min-w-0 flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">{children}</main>
+        <main className="min-w-0 flex-1 pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-0">{children}</main>
         <BottomNav onAdd={() => setAdding(true)} />
         <AddSheet open={adding} onClose={() => setAdding(false)} onPick={onPick} />
       </div>

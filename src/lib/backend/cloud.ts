@@ -18,16 +18,17 @@ type ItemRow = {
   id: string; image_path: string; name: string; category: Item["category"]; slot: Item["slot"]; colours: string[];
   pattern: string; formality: Item["formality"]; season: Item["season"]; styles: Item["styles"]; brand: string; notes: string;
   favourite: boolean; wear_count: number; last_worn: string | null; created_at: string;
+  lightness: number | null; fit: Item["fit"];
 };
 const toItem = (r: ItemRow): Item => ({
   id: r.id, imagePath: r.image_path, name: r.name, category: r.category, slot: r.slot, colours: r.colours, pattern: r.pattern,
   formality: r.formality, season: r.season, styles: r.styles, brand: r.brand, notes: r.notes, favourite: r.favourite,
-  wearCount: r.wear_count, lastWorn: r.last_worn, createdAt: r.created_at,
+  wearCount: r.wear_count, lastWorn: r.last_worn, createdAt: r.created_at, lightness: r.lightness ?? null, fit: r.fit ?? null,
 });
 const fromItem = (i: Item, user_id: string) => ({
   id: i.id, user_id, image_path: i.imagePath, name: i.name, category: i.category, slot: i.slot, colours: i.colours, pattern: i.pattern,
   formality: i.formality, season: i.season, styles: i.styles, brand: i.brand, notes: i.notes, favourite: i.favourite,
-  wear_count: i.wearCount, last_worn: i.lastWorn, created_at: i.createdAt,
+  wear_count: i.wearCount, last_worn: i.lastWorn, created_at: i.createdAt, lightness: i.lightness, fit: i.fit,
 });
 
 const signed = new Map<string, { url: string; exp: number }>();
@@ -76,7 +77,15 @@ export const cloudBackend: Backend = {
     }
     return Object.fromEntries(paths.filter((p) => signed.has(p)).map((p) => [p, signed.get(p)!.url]));
   },
-  async saveItem(item) { ok(await sb.from("items").upsert(fromItem(item, await uid()))); },
+  async saveItem(item) {
+    const row = fromItem(item, await uid());
+    const r = await sb.from("items").upsert(row);
+    // Older databases without the lightness/fit columns (migration not run yet): save the rest instead of failing.
+    if (r.error && /lightness|fit/.test(r.error.message)) {
+      const { lightness: _l, fit: _f, ...legacy } = row; // eslint-disable-line @typescript-eslint/no-unused-vars
+      ok(await sb.from("items").upsert(legacy));
+    } else ok(r);
+  },
   async deleteItem(item) {
     ok(await sb.from("items").delete().eq("id", item.id));
     await sb.storage.from(BUCKET).remove([item.imagePath]); // best effort; row is already gone

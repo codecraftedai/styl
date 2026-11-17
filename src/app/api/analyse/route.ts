@@ -1,4 +1,4 @@
-import { CATEGORIES, FORMALITY, SEASONS, SLOTS, STYLES } from "@/lib/types";
+import { CATEGORIES, FITS, FORMALITY, SEASONS, SLOTS, STYLES } from "@/lib/types";
 import { COLOURS } from "@/lib/colours";
 import { PATTERNS } from "@/lib/analysis";
 
@@ -22,8 +22,11 @@ const PROMPT = `You are a fashion cataloguer for a personal wardrobe app. First 
 "problem": if wearable is false, one short friendly sentence saying what you see instead (e.g. "This looks like a poster, not a piece of clothing."). If wearable is true but the photo is very blurry, too dark, or shows several separate items, one short sentence about that. Otherwise "".
 Then describe the single most prominent item.
 Rules: only describe what you can see; never guess a brand. "name" is 2-4 plain words like "Black linen shirt" or "White leather sneakers".
-"slot" is how it is worn in an outfit: top, bottom, one-piece (dress, saree, jumpsuit, lehenga set), outer (jacket, coat, blazer, shrug), shoes, bag, accessory (watch, belt, jewellery, scarf, sunglasses, cap).
-"colours": 1-3 ids, main colour first.`;
+"slot" is how it is worn in an outfit: top, bottom, one-piece (dress, saree, jumpsuit, lehenga set), outer (anything worn open over a top: jacket, coat, blazer, shrug, cardigan, zip hoodie, overshirt; a pullover sweater or sweatshirt is a top), shoes, bag, accessory (watch, belt, jewellery, scarf, sunglasses, cap).
+"colours": 1-3 ids, main colour first. For a watch: case or strap colour first, then the dial colour. For shoes: main colour, then any trim or sole colour. For sunglasses: frame colour first.
+"name" must end with the plain item word (shirt, jeans, sneakers, watch, sunglasses, belt, cap) so the app can tell accessories apart.
+"season": winter for wool, knits, fleece, puffers and coats; summer for linen and very light pieces; else all.
+"fit" is the silhouette: slim (close to the body), regular, relaxed (loose, oversized), wide (wide-leg or very full). For shoes, bags and accessories use "regular".`;
 
 const schema = {
   type: "OBJECT",
@@ -38,16 +41,17 @@ const schema = {
     formality: { type: "STRING", enum: [...FORMALITY] },
     season: { type: "STRING", enum: [...SEASONS] },
     styles: { type: "ARRAY", items: { type: "STRING", enum: [...STYLES] } },
+    fit: { type: "STRING", enum: [...FITS] },
   },
-  required: ["wearable", "problem", "name", "category", "slot", "colours", "pattern", "formality", "season", "styles"],
+  required: ["wearable", "problem", "name", "category", "slot", "colours", "pattern", "formality", "season", "styles", "fit"],
 };
 
 // Groq has no response schema, so the allowed values go in the prompt (kept short: the free tier limits tokens per minute).
 // sanitise() on the client coerces anything off-list.
 const GROQ_PROMPT = `${PROMPT}
-Reply with JSON only: {wearable:boolean, problem:string, name:string, category, slot, colours:[1-3], pattern, formality, season, styles:[0-3]}.
+Reply with JSON only: {wearable:boolean, problem:string, name:string, category, slot, colours:[1-3], pattern, formality, season, styles:[0-3], fit}.
 category: ${CATEGORIES.join("|")}. slot: ${SLOTS.join("|")}. colours: ${COLOURS.map((c) => c.id).join("|")}.
-pattern: ${PATTERNS.join("|")}. formality: ${FORMALITY.join("|")}. season: ${SEASONS.join("|")}. styles: ${STYLES.join("|")}.`;
+pattern: ${PATTERNS.join("|")}. formality: ${FORMALITY.join("|")}. season: ${SEASONS.join("|")}. styles: ${STYLES.join("|")}. fit: ${FITS.join("|")}.`;
 
 type GroqResult = { data: unknown } | { waitMs: number } | null;
 

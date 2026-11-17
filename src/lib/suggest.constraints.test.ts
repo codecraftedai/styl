@@ -160,3 +160,95 @@ describe("review follow-ups", () => {
     expect(s.items).toContain(plain);
   });
 });
+
+describe("measured shade and fit", async () => {
+  const { shade, styling } = await import("./suggest");
+  it("measured lightness wins over the colour label and name", () => {
+    expect(shade(item({ colours: ["denim"], name: "Light blue jeans", lightness: 0.2 }))).toBe(0.2);
+    expect(shade(item({ colours: ["denim"], name: "Blue jeans", lightness: null }))).toBeGreaterThan(0.2);
+  });
+  it("balances proportions: fitted + wide beats wide + wide", () => {
+    const wide = item({ slot: "bottom", fit: "wide", colours: ["black"] });
+    const fitted = item({ fit: "slim", colours: ["white"] }), oversized = item({ fit: "relaxed", colours: ["white"] });
+    expect(styling([fitted, wide], "Casual").score).toBeGreaterThan(styling([oversized, wide], "Casual").score);
+  });
+  it("oversized + wide is fine when the look is streetwear", () => {
+    const wide = item({ slot: "bottom", fit: "wide", colours: ["black"], styles: ["Streetwear"] });
+    const oversized = item({ fit: "relaxed", colours: ["white"], styles: ["Streetwear"] });
+    expect(styling([oversized, wide], "Casual").score).toBeGreaterThanOrEqual(styling([item({ colours: ["white"] }), item({ slot: "bottom", colours: ["black"] })], "Casual").score);
+  });
+});
+
+describe("finishing pieces rotate (real 35-piece wardrobe: 6 shoes, 9 watches, 3 sunglasses)", async () => {
+  const { finishing, kind } = await import("./suggest");
+  const { realWardrobe } = await import("./__audit__/real-wardrobe");
+  const w = realWardrobe();
+  const looks = (occasion: "Casual" | "Work" | "Date night" | "Party") => suggest(w, ctx({ wear: "Men" }, { occasion, tempC: 30 }), 6);
+  const distinct = (res: ReturnType<typeof looks>, k: string) => new Set(res.flatMap((s) => s.items.filter((i) => kind(i) === k).map((i) => i.id))).size;
+
+  it("six looks don't all wear the same shoes and the same watch", () => {
+    for (const o of ["Casual", "Work", "Date night", "Party"] as const) {
+      const res = looks(o);
+      expect(res).toHaveLength(6);
+      expect(distinct(res, "shoes"), `${o} shoes`).toBeGreaterThanOrEqual(4);
+      expect(distinct(res, "watch"), `${o} watches`).toBeGreaterThanOrEqual(4);
+      expect(new Set(res.map((s) => s.items[0].id)).size, `${o} shirts`).toBeGreaterThanOrEqual(5);
+    }
+  });
+  it("one accessory per kind, no gold next to silver, no sunglasses in the evening", () => {
+    for (const o of ["Casual", "Work", "Date night", "Party"] as const) for (const s of looks(o)) {
+      const accs = s.items.filter((i) => i.slot === "accessory");
+      expect(new Set(accs.map(kind)).size).toBe(accs.length);
+      expect(new Set(accs.map((i) => i.colours[0]).filter((c) => c === "gold" || c === "silver")).size).toBeLessThanOrEqual(1);
+      if (o === "Date night" || o === "Party") expect(accs.some((i) => kind(i) === "sunglasses")).toBe(false);
+    }
+  });
+  it("never puts a navy shirt on dark-blue jeans when other jeans exist", () => {
+    for (const o of ["Casual", "Work", "Date night", "Party"] as const) for (const s of looks(o)) {
+      const [top, bottom] = s.items;
+      expect(top.colours[0] === "navy" && bottom.colours[0] === "denim" && bottom.lightness! < 0.3, s.items.map((i) => i.name).join()).toBe(false);
+    }
+  });
+  it("the finish follows the clothes: tan trim with a brown shirt, green dial with a green shirt", () => {
+    const by = (name: string) => w.find((i) => i.name === name)!;
+    const brown = [by("Brown oxford shirt"), by("Light blue wide jeans")], green = [by("Dark green shirt"), by("Light blue wide jeans")];
+    expect(finishing([...brown, by("White tan sneakers")]).score).toBeGreaterThan(finishing([...brown, by("White leather sneakers")]).score);
+    expect(finishing([...brown, by("Tan leather watch")]).score).toBeGreaterThan(finishing([...brown, by("Silver blue watch")]).score);
+    expect(finishing([...green, by("Silver green dial watch")]).score).toBeGreaterThan(finishing([...green, by("Silver black dial watch")]).score);
+  });
+  it("identical pieces take turns from one day to the next", () => {
+    const tie = [item({ colours: ["white"] }), item({ slot: "bottom", colours: ["black"] }), ...[1, 2, 3, 4].map(() => item({ slot: "shoes", colours: ["white"], formality: "casual" }))];
+    const shoeOn = (today: string) => suggest(tie, ctx({}, { today }))[0].items.find((i) => i.slot === "shoes")!.id;
+    expect(new Set(["2026-11-14", "2026-11-15", "2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19"].map(shoeOn)).size).toBeGreaterThan(1);
+  });
+});
+
+describe("swap a piece in a look", async () => {
+  const { swap, swapOptions, kind } = await import("./suggest");
+  const { realWardrobe } = await import("./__audit__/real-wardrobe");
+  const w = realWardrobe();
+  const c = ctx({ wear: "Men" }, { occasion: "Casual" as const, tempC: 30 });
+  const [look] = suggest(w, c, 1);
+
+  it("replaces only the tapped piece, with the same kind, and walks through every option before repeating", () => {
+    const watch = look.items.find((i) => kind(i) === "watch")!;
+    const seen = new Set([watch.id]);
+    let cur = look.items, target = watch;
+    for (let k = 0; k < 8; k++) {
+      const next = swap(w, cur, target, c)!;
+      expect(next.items).toHaveLength(cur.length);
+      expect(next.items.filter((i) => !cur.includes(i))).toHaveLength(1);
+      target = next.items.find((i) => !cur.includes(i))!;
+      expect(kind(target)).toBe("watch");
+      expect(next.reasons.length).toBeGreaterThan(0);
+      seen.add(target.id);
+      cur = next.items;
+    }
+    expect(seen.size).toBe(9); // all nine watches
+    expect(swap(w, cur, target, c)!.items).toContain(swapOptions(w, look.items, watch, c)[0]); // wraps to the best option
+  });
+  it("returns null when nothing else can take that spot", () => {
+    const top = item({}), bottom = item({ slot: "bottom" });
+    expect(swap([top, bottom], [top, bottom], top, ctx())).toBeNull();
+  });
+});

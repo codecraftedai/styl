@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getBackend } from "./backend";
 import { uuid } from "./uuid";
 import type { Backend, Session } from "./backend/types";
@@ -67,6 +67,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     apply();
     try { await write(); } catch { rollback(); toast(failMsg, "error"); }
   }, []);
+
+  // Backfill: measure lightness from saved photos for pieces added before it existed. On device, no AI quota, once per piece.
+  const backfilled = useRef(false);
+  useEffect(() => {
+    if (status !== "ready" || !backend || backfilled.current) return;
+    const todo = items.filter((i) => i.lightness === null && urls[i.imagePath]).slice(0, 60);
+    if (!todo.length) return;
+    backfilled.current = true;
+    (async () => {
+      const { measureLightness } = await import("./image");
+      for (const it of todo) {
+        try {
+          const l = await measureLightness(await (await fetch(urls[it.imagePath])).blob());
+          const next = { ...it, lightness: l };
+          await backend.saveItem(next);
+          setItems((xs) => xs.map((x) => (x.id === it.id && x.lightness === null ? { ...x, lightness: l } : x)));
+        } catch { /* try again next session */ }
+      }
+    })();
+  }, [status, backend, items, urls]);
 
   const store = useMemo<Store>(() => {
     const b = backend!;

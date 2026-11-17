@@ -6,7 +6,7 @@ let n = 0;
 const item = (p: Partial<Item>): Item => ({
   id: String(++n), imagePath: "", name: "x", category: "Tops", slot: "top", colours: ["black"], pattern: "Solid",
   formality: "casual", season: "all", styles: [], brand: "", notes: "", favourite: false, wearCount: 0, lastWorn: null,
-  createdAt: "2026-11-01", ...p,
+  createdAt: "2026-11-01", lightness: null, fit: null, ...p,
 });
 const ctx = { occasion: "Work" as const, tempC: 30, prefs: { ...EMPTY_PREFS, climate: "Hot" as const }, today: "2026-11-14" };
 

@@ -7,16 +7,19 @@ import { Input } from "@/components/ui/input";
 import { Swatch } from "@/components/ui/swatch";
 import { COLOURS } from "@/lib/colours";
 import { DEFAULT_SLOT, PATTERNS } from "@/lib/analysis";
-import { CATEGORIES, FORMALITY, SEASONS, SLOTS, STYLES, type Item } from "@/lib/types";
+import { CATEGORIES, FITS, FORMALITY, SEASONS, SLOTS, STYLES, type Item } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
-export type ItemFields = Pick<Item, "name" | "category" | "slot" | "colours" | "pattern" | "formality" | "season" | "styles" | "brand" | "notes">;
+export type ItemFields = Pick<Item, "name" | "category" | "slot" | "colours" | "pattern" | "formality" | "season" | "styles" | "brand" | "notes" | "lightness" | "fit">;
 
 const SLOT_LABEL: Record<Item["slot"], string> = {
   top: "Top", bottom: "Bottom", "one-piece": "Full outfit", outer: "Layer", shoes: "Shoes", bag: "Bag", accessory: "Accessory",
 };
 const SEASON_LABEL: Record<Item["season"], string> = { summer: "Warm days", winter: "Cold days", all: "All year" };
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
+const SHADES = ["light", "medium", "dark"] as const;
+const SHADE_VALUE: Record<(typeof SHADES)[number], number> = { light: 0.8, medium: 0.5, dark: 0.2 };
+const shadeOf = (l: number | null) => (l === null ? "medium" : l >= 0.6 ? "light" : l <= 0.35 ? "dark" : "medium");
 
 function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
@@ -33,7 +36,7 @@ function Segmented<T extends string>({ options, value, onChange, label, id }: { 
       {options.map((o) => (
         <button key={o} type="button" role="radio" aria-checked={value === o} onClick={() => onChange(o)}
           className={cn("relative z-10 h-10 rounded-full text-caption font-medium transition-colors", value === o ? "text-ink" : "text-ink-3 hover:text-ink-2")}>
-          {value === o && <motion.span layoutId={`seg-${id}`} className="absolute inset-0 -z-10 rounded-full bg-surface shadow-card" transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
+          {value === o && <motion.span layoutId={`seg-${id}`} className="absolute inset-0 -z-10 rounded-full bg-line" transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
           {label(o)}
         </button>
       ))}
@@ -78,6 +81,16 @@ export function ItemForm({ value, onChange }: { value: ItemFields; onChange: (v:
       <Field label="Pattern">
         <Row>{PATTERNS.map((p) => <Chip key={p} selected={value.pattern === p} onClick={() => set("pattern", p)}>{p}</Chip>)}</Row>
       </Field>
+
+      <Field label="Shade" hint="how light or dark it is">
+        <Segmented id="shade" options={SHADES} value={shadeOf(value.lightness)} onChange={(v) => set("lightness", SHADE_VALUE[v])} label={cap} />
+      </Field>
+
+      {(["top", "bottom", "one-piece", "outer"] as Item["slot"][]).includes(value.slot) && (
+        <Field label="Fit">
+          <Row>{FITS.map((f) => <Chip key={f} selected={value.fit === f} onClick={() => set("fit", value.fit === f ? null : f)}>{cap(f)}</Chip>)}</Row>
+        </Field>
+      )}
 
       <Field label="Dressiness">
         <Segmented id="formality" options={FORMALITY} value={value.formality} onChange={(v) => set("formality", v)} label={cap} />

@@ -24,9 +24,9 @@ export function Toaster() {
     () => null,
   );
   return (
-    <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-50 flex justify-center px-4 md:bottom-8">
+    <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] z-50 flex justify-center px-4 md:bottom-8">
       {t && (
-        <div key={t.id} className="flex animate-fade-up items-center gap-2.5 rounded-full bg-ink px-5 py-3 text-caption text-on-ink shadow-float">
+        <div key={t.id} className="flex animate-fade-up items-center gap-2.5 rounded-full bg-ink px-5 py-3 text-caption font-medium text-on-ink shadow-float">
           {t.tone === "success" ? <CircleCheck className="size-4" aria-hidden /> : <CircleAlert className="size-4" aria-hidden />}
           {t.text}
         </div>

@@ -1,4 +1,4 @@
-import { CATEGORIES, FORMALITY, SEASONS, SLOTS, STYLES, type Category, type Formality, type Season, type Slot, type Style } from "./types";
+import { CATEGORIES, FITS, FORMALITY, SEASONS, SLOTS, STYLES, type Category, type Fit, type Formality, type Season, type Slot, type Style } from "./types";
 import { COLOURS } from "./colours";
 import { compress } from "./image";
 
@@ -11,6 +11,7 @@ export type Analysis = {
   formality: Formality;
   season: Season;
   styles: Style[];
+  fit: Fit | null;
   source: "ai" | "basic";
   /** AI says this isn't clothing: block saving. */
   rejected: string | null;
@@ -41,6 +42,7 @@ export function sanitise(raw: Record<string, unknown>, fallbackColours: string[]
     formality: pick(raw.formality, FORMALITY, "casual"),
     season: pick(raw.season, SEASONS, "all"),
     styles: (Array.isArray(raw.styles) ? raw.styles : []).filter((s): s is Style => STYLES.includes(s as Style)).slice(0, 3),
+    fit: FITS.includes(raw.fit as Fit) ? (raw.fit as Fit) : null,
   };
 }
 

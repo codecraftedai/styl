@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Swatch } from "@/components/ui/swatch";
 import { toast } from "@/components/ui/toast";
 import { analyse } from "@/lib/analysis";
-import { compress, dominantColours } from "@/lib/image";
+import { compress, dominantColours, measureLightness } from "@/lib/image";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/cn";
 import { ItemForm, type ItemFields } from "./item-form";
@@ -18,7 +18,7 @@ type Status = "waiting" | "reading" | "ready" | "manual" | "rejected";
 type Entry = { key: string; preview: string | null; photo: Blob | null; status: Status; fields: ItemFields | null; issue: string | null };
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const blank = (colours: string[]): ItemFields => ({ name: "New piece", category: "Tops", slot: "top", colours, pattern: "Solid", formality: "casual", season: "all", styles: [], brand: "", notes: "" });
+const blank = (colours: string[], lightness: number | null): ItemFields => ({ name: "New piece", category: "Tops", slot: "top", colours, pattern: "Solid", formality: "casual", season: "all", styles: [], brand: "", notes: "", lightness, fit: null });
 const saveable = (e: Entry) => (e.status === "ready" || e.status === "manual") && !!e.photo && !!e.fields;
 
 /**
@@ -41,25 +41,26 @@ export function BatchAdd({ files, onReset }: { files: File[]; onReset: () => voi
       started.current = true;
       (async () => {
         // Pass 1: thumbnails + on-device colours for every photo, so all cards show right away.
-        const ready: { key: string; photo: Blob; colours: string[] }[] = [];
+        const ready: { key: string; photo: Blob; colours: string[]; lightness: number | null }[] = [];
         for (const [i, file] of files.entries()) {
           const key = String(i);
           try {
             const photo = await compress(file);
             const colours = await dominantColours(photo);
-            patch(key, { photo, preview: URL.createObjectURL(photo), fields: blank(colours) });
-            ready.push({ key, photo, colours });
+            const lightness = await measureLightness(photo).catch(() => null);
+            patch(key, { photo, preview: URL.createObjectURL(photo), fields: blank(colours, lightness) });
+            ready.push({ key, photo, colours, lightness });
           } catch {
             patch(key, { status: "rejected", issue: "We couldn't read this file. Try a JPEG or PNG." });
           }
         }
         // Pass 2: AI check, one photo at a time.
-        for (const { key, photo, colours } of ready) {
+        for (const { key, photo, colours, lightness } of ready) {
           if (!alive.current) return;
           patch(key, { status: "reading" });
           const a = await analyse(photo, colours, await token());
           if (a.rejected) patch(key, { status: "rejected", issue: a.rejected });
-          else if (a.source === "ai") patch(key, { status: "ready", issue: a.warning, fields: { ...blank(a.colours), name: a.name, category: a.category, slot: a.slot, pattern: a.pattern, formality: a.formality, season: a.season, styles: a.styles } });
+          else if (a.source === "ai") patch(key, { status: "ready", issue: a.warning, fields: { ...blank(a.colours, lightness), name: a.name, category: a.category, slot: a.slot, pattern: a.pattern, formality: a.formality, season: a.season, styles: a.styles, fit: a.fit } });
           else patch(key, { status: "manual", issue: "Couldn't auto-fill this one. Tap to choose the details." });
         }
       })();

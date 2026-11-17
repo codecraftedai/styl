@@ -58,7 +58,7 @@ export function WearPicker({ value, onChange }: { value: Wear; onChange: (w: Wea
         const on = value === w;
         return (
           <button key={w} type="button" role="radio" aria-checked={on} onClick={() => onChange(w)}
-            className={cn("flex items-center gap-4 rounded-lg border p-4 text-left transition-colors", on ? "border-ink bg-surface" : "border-line bg-surface/60 hover:border-ink-3")}>
+            className={cn("flex items-center gap-4 rounded-lg border p-4 text-left transition-colors", on ? "border-ink bg-stone" : "border-line bg-surface hover:border-ink-3")}>
             <span className="flex-1"><span className="block">{LABEL[w][0]}</span><span className="block text-caption text-ink-3">{LABEL[w][1]}</span></span>
             <span className={cn("size-5 rounded-full border-2 transition-all", on ? "border-[6px] border-ink" : "border-line")} />
           </button>
@@ -116,7 +116,7 @@ export function ClimatePicker({ value, onChange }: { value: Climate; onChange: (
         const on = value === c;
         return (
           <button key={c} type="button" role="radio" aria-checked={on} onClick={() => onChange(c)}
-            className={cn("flex items-center gap-4 rounded-lg border p-4 text-left transition-colors", on ? "border-ink bg-surface" : "border-line bg-surface/60 hover:border-ink-3")}>
+            className={cn("flex items-center gap-4 rounded-lg border p-4 text-left transition-colors", on ? "border-ink bg-stone" : "border-line bg-surface hover:border-ink-3")}>
             <span className="flex size-11 items-center justify-center rounded-full bg-stone"><Icon className="size-5 stroke-[1.5]" /></span>
             <span className="flex-1"><span className="block">{c}</span><span className="block text-caption text-ink-3">{note}</span></span>
             <span className={cn("size-5 rounded-full border-2 transition-all", on ? "border-[6px] border-ink" : "border-line")} />
@@ -145,7 +145,7 @@ export function ChoicePicker<T extends string>({ options, value, onChange, notes
         const on = value === o;
         return (
           <button key={o} type="button" role="radio" aria-checked={on} onClick={() => onChange(o)}
-            className={cn("flex items-center gap-4 rounded-lg border px-4 py-3.5 text-left transition-colors active:scale-[0.99]", on ? "border-ink bg-surface" : "border-line bg-surface/60 hover:border-ink-3")}>
+            className={cn("flex items-center gap-4 rounded-lg border px-4 py-3.5 text-left transition-colors active:scale-[0.99]", on ? "border-ink bg-stone" : "border-line bg-surface hover:border-ink-3")}>
             <span className="flex-1"><span className="block">{o}</span>{notes[o] && <span className="block text-caption text-ink-3">{notes[o]}</span>}</span>
             <span className={cn("size-5 shrink-0 rounded-full border-2 transition-all", on ? "border-[6px] border-ink" : "border-line")} />
           </button>
