@@ -26,13 +26,13 @@ export function LookInsights({ reasons, cautions, tip, onApplyTip, onUndo }: Loo
             <Lightbulb className="mt-0.5 size-4 shrink-0 text-champagne" aria-hidden />
             <span><span className="font-medium text-ink">Stylist tip: </span>{tip}</span>
           </p>
-          {onApplyTip && <Button variant="secondary" className="mt-3 ml-7 h-10 px-4 text-caption" onClick={onApplyTip}>Try it</Button>}
+          {onApplyTip && <Button size="sm" variant="secondary" className="mt-3 ml-7" onClick={onApplyTip}>Try it</Button>}
         </section>
       )}
       {onUndo && (
         <div className="flex items-center justify-between gap-3 rounded-lg bg-stone/60 px-4 py-2.5 text-caption text-ink-2">
           Tip applied. The score below is for the new look.
-          <Button variant="ghost" className="h-9 shrink-0 px-3 text-caption" onClick={onUndo}><Undo2 className="size-4" aria-hidden /> Undo</Button>
+          <Button size="sm" variant="ghost" className="shrink-0" onClick={onUndo}><Undo2 className="size-4" aria-hidden /> Undo</Button>
         </div>
       )}
       {reasons.length > 0 && <List title="Why it works" items={reasons} icon={<Check className="mt-0.5 size-4 shrink-0 text-champagne" aria-hidden />} />}

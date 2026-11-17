@@ -185,7 +185,7 @@ export default function AddItem() {
                   {!aiUsed && mode === "cloud" && (
                     <div role="status" className="mb-4 rounded-md bg-stone px-4 py-3 text-caption text-ink-2">
                       <p className="flex items-start gap-2"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />We couldn&apos;t check this photo right now (the AI service is busy), so it wasn&apos;t auto-filled.</p>
-                      <Button variant="secondary" className="mt-3 h-9 px-4 text-caption" loading={retrying} onClick={retryAnalysis}><Sparkles className="size-3.5" aria-hidden /> Try auto-fill again</Button>
+                      <Button size="sm" variant="secondary" className="mt-3" loading={retrying} onClick={retryAnalysis}><Sparkles className="size-3.5" aria-hidden /> Try auto-fill again</Button>
                     </div>
                   )}
                   <p className="mb-6 text-center text-caption text-ink-3">

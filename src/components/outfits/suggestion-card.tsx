@@ -82,7 +82,7 @@ export function SuggestionCard({ s: suggested, occasion, index, meta, swapper, o
           <Button block disabled={wornToday} onClick={() => { markWorn(s.items.map((i) => i.id)); toast("Logged. Looking good today."); }}>
             {wornToday ? <><Check className="size-4" aria-hidden /> Wearing today</> : <><Shirt className="size-4" aria-hidden /> Wear this</>}
           </Button>
-          <Button variant="secondary" className="w-12 shrink-0 px-0" aria-label={saved ? "Saved" : "Save outfit"} disabled={saved}
+          <Button size="icon" variant="secondary" aria-label={saved ? "Saved" : "Save outfit"} disabled={saved}
             onClick={() => { saveOutfit({ name: `${occasion} look`, itemIds: s.items.map((i) => i.id), occasion }); setSaved(true); toast("Saved to your outfits"); }}>
             <Bookmark className={saved ? "size-4 fill-ink" : "size-4"} aria-hidden />
           </Button>

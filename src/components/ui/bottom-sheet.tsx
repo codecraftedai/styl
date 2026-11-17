@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { motion, useDragControls, useReducedMotion } from "motion/react";
 import { X } from "lucide-react";
 import { IconButton } from "./icon-button";
 
@@ -9,11 +9,15 @@ type BottomSheetProps = { open: boolean; onClose: () => void; title: string; chi
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-/** Native <dialog> (focus trap, Esc, inert page) + motion: slides up, drag down to dismiss on phones. */
+/**
+ * Native <dialog> (focus trap, Esc, inert page) + motion: slides up, drag the handle or title down to dismiss on phones.
+ * Only the header starts a drag: a draggable body gets `touch-action: none`, which stops its content from scrolling on touch screens.
+ */
 export function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const [closing, setClosing] = useState(false);
   const reduce = useReducedMotion();
+  const drag = useDragControls();
 
   useEffect(() => {
     const d = ref.current;
@@ -39,17 +43,23 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
           transition={{ duration: closing ? 0.22 : 0.42, ease: EASE }}
           onAnimationComplete={() => closing && onClose()}
           drag="y"
+          dragControls={drag}
+          dragListener={false}
           dragConstraints={{ top: 0, bottom: 0 }}
           dragElastic={{ top: 0, bottom: 0.6 }}
           onDragEnd={(_, i) => (i.offset.y > 90 || i.velocity.y > 500) && requestClose()}
-          className="max-h-[92dvh] overflow-y-auto rounded-t-xl border-t border-line bg-surface pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-float md:rounded-xl md:border md:pb-6"
+          className="flex max-h-[92dvh] flex-col rounded-t-xl border-t border-line bg-surface shadow-float md:rounded-xl md:border"
         >
-          <div className="mx-auto mt-2.5 h-1 w-10 cursor-grab rounded-full bg-line md:hidden" aria-hidden />
-          <div className="flex items-center justify-between px-6 pt-3 pb-2">
-            <h2 className="font-display text-[1.375rem] tracking-tight">{title}</h2>
-            <IconButton label="Close" tone="filled" icon={<X className="size-5" />} onClick={requestClose} className="-mr-1" />
+          {/* Drag zone: handle + title. touch-none here only, so the body below keeps native scrolling. */}
+          <div className="shrink-0 cursor-grab touch-none select-none active:cursor-grabbing"
+            onPointerDown={(e) => { if (!(e.target as HTMLElement).closest("button")) drag.start(e); }}>
+            <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-line md:hidden" aria-hidden />
+            <div className="flex items-center justify-between px-6 pt-3 pb-2">
+              <h2 className="font-display text-[1.375rem] tracking-tight">{title}</h2>
+              <IconButton label="Close" tone="filled" icon={<X className="size-5" />} onClick={requestClose} className="-mr-1" />
+            </div>
           </div>
-          <div className="px-6">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:pb-6">{children}</div>
         </motion.div>
       )}
     </dialog>

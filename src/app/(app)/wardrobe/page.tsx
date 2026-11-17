@@ -96,7 +96,7 @@ export default function Wardrobe() {
           {washing && (
             <div className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-caption">
               <span className="text-ink-2">{laundry.length} {laundry.length === 1 ? "piece is" : "pieces are"} left out of outfits until clean.</span>
-              <Button variant="secondary" className="h-9 shrink-0 px-4 text-caption" onClick={() => { setLaundry(laundry, false); setWashing(false); toast("All marked clean"); }}>Laundry done</Button>
+              <Button size="sm" variant="secondary" className="shrink-0" onClick={() => { setLaundry(laundry, false); setWashing(false); toast("All marked clean"); }}>Laundry done</Button>
             </div>
           )}
 

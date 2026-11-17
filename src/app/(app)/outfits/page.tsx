@@ -64,7 +64,7 @@ function Outfits() {
           {anchor && (
             <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-line bg-surface py-2 pr-2 pl-4 text-caption">
               <span className="text-ink-2">Styling your <span className="font-medium text-ink">{anchor.name.toLowerCase()}</span></span>
-              <Button variant="secondary" className="h-9 shrink-0 px-4 text-caption" onClick={() => { setWithId(null); history.replaceState(null, "", "/outfits"); }}>Show all</Button>
+              <Button size="sm" variant="secondary" className="shrink-0" onClick={() => { setWithId(null); history.replaceState(null, "", "/outfits"); }}>Show all</Button>
             </div>
           )}
 

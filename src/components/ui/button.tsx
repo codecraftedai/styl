@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
-type Size = "md" | "lg";
+type Size = "sm" | "md" | "lg" | "icon";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
@@ -19,7 +19,10 @@ const variants: Record<Variant, string> = {
   danger: "bg-danger/10 text-danger hover:bg-danger/20",
 };
 
+// Sizes live here, not in className overrides: cn() only joins classes, so "h-9" passed in would lose to the size's "h-12".
 const sizes: Record<Size, string> = {
+  sm: "h-10 px-4 text-caption",
+  icon: "size-12 shrink-0 p-0",
   md: "h-12 px-6 text-body",
   lg: "h-14 px-8 text-body",
 };

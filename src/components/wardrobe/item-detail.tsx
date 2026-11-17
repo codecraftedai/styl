@@ -98,7 +98,7 @@ export function ItemDetail({ item, onClose }: { item: Item; onClose: () => void 
           {previous && (
             <div role="status" className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-line bg-surface py-2 pr-2 pl-4 text-caption text-ink-2">
               Details updated by the AI.
-              <Button variant="secondary" className="h-9 shrink-0 px-3 text-caption" onClick={async () => { await updateItem(previous); setPrevious(null); toast("Restored your previous details"); }}>
+              <Button size="sm" variant="secondary" className="shrink-0" onClick={async () => { await updateItem(previous); setPrevious(null); toast("Restored your previous details"); }}>
                 <Undo2 className="size-4" aria-hidden /> Undo
               </Button>
             </div>
@@ -107,7 +107,7 @@ export function ItemDetail({ item, onClose }: { item: Item; onClose: () => void 
           {needsReview(item) && (
             <div role="status" className="mt-5 rounded-lg border border-line bg-surface p-4 text-caption text-ink-2">
               <p className="flex items-start gap-2"><CircleAlert className="mt-0.5 size-4 shrink-0 text-champagne" aria-hidden />Auto-fill didn&apos;t run when this was added, so its details may be wrong. That affects your outfits.</p>
-              <Button variant="secondary" className="mt-3 h-9 px-4 text-caption" loading={recheck.busy} onClick={recheck.run}><Sparkles className="size-3.5" aria-hidden /> Auto-fill now</Button>
+              <Button size="sm" variant="secondary" className="mt-3" loading={recheck.busy} onClick={recheck.run}><Sparkles className="size-3.5" aria-hidden /> Auto-fill now</Button>
             </div>
           )}
 
@@ -139,11 +139,11 @@ export function ItemDetail({ item, onClose }: { item: Item; onClose: () => void 
           </dl>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button variant="secondary" className="h-10 px-4 text-caption" aria-pressed={inLaundry} onClick={() => { setLaundry([item.id], !inLaundry); toast(inLaundry ? "Marked clean. Back in your outfits." : "In the laundry. We'll leave it out of outfits."); }}>
+            <Button size="sm" variant="secondary"  aria-pressed={inLaundry} onClick={() => { setLaundry([item.id], !inLaundry); toast(inLaundry ? "Marked clean. Back in your outfits." : "In the laundry. We'll leave it out of outfits."); }}>
               <WashingMachine className="size-4" aria-hidden /> {inLaundry ? "Mark clean" : "In laundry"}
             </Button>
-            <Button variant="secondary" className="h-10 px-4 text-caption" onClick={() => setEditing({ ...item })}><Pencil className="size-4" aria-hidden /> Edit</Button>
-            <Button variant="danger" className="h-10 px-4 text-caption" onClick={() => setConfirm(true)}><Trash2 className="size-4" aria-hidden /> Delete</Button>
+            <Button size="sm" variant="secondary"  onClick={() => setEditing({ ...item })}><Pencil className="size-4" aria-hidden /> Edit</Button>
+            <Button size="sm" variant="danger"  onClick={() => setConfirm(true)}><Trash2 className="size-4" aria-hidden /> Delete</Button>
           </div>
         </motion.div>
       </div>

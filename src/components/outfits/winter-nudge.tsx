@@ -27,11 +27,11 @@ export function WinterNudge() {
       <div className="min-w-0 flex-1">
         <p className="text-caption font-medium">Winter&apos;s here</p>
         <p className="mt-0.5 text-caption text-ink-3">Turn on live weather so we know which days need a jacket, or just tell us it&apos;s winter.</p>
-        <Button variant="secondary" className="mt-3 h-9 px-4 text-caption" onClick={async () => {
+        <Button size="sm" variant="secondary" className="mt-3" onClick={async () => {
           try { await saveProfile({ ...profile, prefs: { ...prefs, liveWeather: true } }); toast("Live weather on"); }
           catch { toast("Couldn't save. Try again.", "error"); }
         }}>Turn on live weather</Button>
-        <Button variant="ghost" className="mt-3 ml-1 h-9 px-3 text-caption" onClick={async () => {
+        <Button size="sm" variant="ghost" className="mt-3 ml-1" onClick={async () => {
           try { await saveProfile({ ...profile, prefs: { ...prefs, currentSeason: "Winter" } }); toast("Dressing you for winter"); }
           catch { toast("Couldn't save. Try again.", "error"); }
         }}>Set to winter</Button>

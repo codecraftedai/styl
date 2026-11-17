@@ -113,7 +113,7 @@ function Profile() {
         {QUESTIONS.map((q) => <Row key={q.key} label={q.label} value={p[q.key]} onClick={() => edit(q.key)} />)}
       </div>
 
-      <Button variant="secondary" block className="mt-8 text-ink-2" onClick={signOut}><LogOut className="size-4" aria-hidden /> Sign out</Button>
+      <Button variant="secondary" block className="mt-8" onClick={signOut}><LogOut className="size-4" aria-hidden /> Sign out</Button>
 
       <BottomSheet open={!!editor} onClose={() => setEditor(null)} title={editor ? editors[editor].title : ""}>
         {editor && (
