@@ -4,7 +4,7 @@ import type { Item, Occasion, Prefs, Wear } from "./types";
 // "Worth adding": try well-known wardrobe staples one at a time and measure what each would unlock.
 // Pure rules on top of suggest(); no AI, no shopping links.
 
-type Staple = { key: string; name: string; for: Wear[]; item: Pick<Item, "category" | "slot" | "colours" | "formality" | "season" | "styles" | "pattern"> & { lightness: number; fit: Item["fit"] } };
+export type Staple = { key: string; name: string; for: Wear[]; item: Pick<Item, "category" | "slot" | "colours" | "formality" | "season" | "styles" | "pattern"> & { lightness: number; fit: Item["fit"] } };
 
 const S = (key: string, name: string, forWho: Wear[], item: Staple["item"]): Staple => ({ key, name, for: forWho, item });
 
@@ -24,7 +24,7 @@ export const STAPLES: Staple[] = [
 
 export type Gap = { key: string; name: string; reason: string; value: number };
 
-const toItem = (s: Staple): Item => ({
+export const toItem = (s: Staple): Item => ({
   id: `staple:${s.key}`, imagePath: "", name: s.name, brand: "", notes: "", favourite: false, wearCount: 0, lastWorn: null,
   createdAt: "1970-01-01", ...s.item,
 });

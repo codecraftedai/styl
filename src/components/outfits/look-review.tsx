@@ -16,6 +16,7 @@ import { Collage } from "./collage";
 import { LookInsights } from "./look-insights";
 import { LookScore } from "./look-score";
 import { ScoreBreakdown } from "./score-breakdown";
+import { ShopIdea } from "./shop-idea";
 
 const isOccasion = (o: string | null): o is Occasion => !!o && (OCCASIONS as readonly string[]).includes(o);
 
@@ -74,6 +75,7 @@ export function LookReview() {
           <LookScore rating={r.rating} occasion={occasion} fits={fits} onOccasion={(o) => { setOccasion(o); setUndo(null); }} reasons={r.reasons.length} cautions={r.cautions.length} />
           <LookInsights reasons={r.reasons} cautions={r.cautions} tip={r.tip} onApplyTip={r.tipSwap ? applyTip : undefined}
             onUndo={undo ? () => { setIds(undo); setUndo(null); } : undefined} />
+          <ShopIdea look={look} occasion={occasion} variant="section" />
           <ScoreBreakdown rating={r.rating} factors={r.factors} defaultOpen note="Scored with the same stylist rules as your daily suggestions." />
         </div>
       </div>

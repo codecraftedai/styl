@@ -100,14 +100,14 @@ function scoring(all: Item[], ctx: Context) {
   const extras = (items: Item[]) => items.filter((i) => i.slot === "bag" || i.slot === "accessory");
 
   /** Mean fit of worn pieces + harmony + styling + finishing + bounded completeness + small accessory share + learned pairs. */
-  const breakdown = (items: Item[]): Tally => {
+  const breakdown = (items: Item[], shareExtras = true): Tally => {
     const t = tally();
     const worn = items.filter((i) => WORN.includes(i.slot));
     for (const k of PARTS) t[k] = mean(worn.map((i) => p(i)[k]));
     for (const r of rules(items)) for (const k of PARTS) t[k] += r.parts[k];
     t.footwear += shod(items);
     t.occasion += layer(items);
-    for (const i of extras(items)) for (const k of PARTS) t[k] += W.accessoryShare * p(i)[k];
+    if (shareExtras) for (const i of extras(items)) for (const k of PARTS) t[k] += W.accessoryShare * p(i)[k];
     t.learned += learned(items);
     return t;
   };
@@ -163,6 +163,17 @@ export function swap(all: Item[], look: Item[], target: Item, ctx: Context): Sug
   if (options.length < 2) return null;
   const next = options[(options.indexOf(target) + 1) % options.length];
   return present(replace(look, target, next), ctx, scoring(all, ctx), all, all.find((i) => i.id === ctx.must));
+}
+
+/**
+ * Light rater for trying many variants of one look (shopping ideas): stylist score and factors only,
+ * no reasons or tips. Scoring is built once per wardrobe + context; pieces not in the wardrobe are scored on the fly.
+ */
+export function stylistRater(wardrobe: Item[], ctx: Context, opts: { shareExtras?: boolean } = {}) {
+  const sc = scoring(wardrobe, ctx);
+  // shareExtras false: an accessory counts only for how it works WITH the look (echo, tone), not for its own fit.
+  // That's the right question for "would buying this improve the outfit?" — a generic belt isn't +1 on its own.
+  return (look: Item[]) => { const t = sc.breakdown(look, opts.shareExtras ?? true); return { rating: rating(t), factors: factorScores(t, look) }; };
 }
 
 /** Score a fixed look (saved outfit, regression scenario) exactly as the engine would. */

@@ -10,6 +10,7 @@ import type { Swapper } from "@/lib/use-suggestions";
 import type { Occasion } from "@/lib/types";
 import { Collage } from "./collage";
 import { ScoreBreakdown } from "./score-breakdown";
+import { ShopIdea } from "./shop-idea";
 
 type SuggestionCardProps = {
   s: Suggestion; occasion: Occasion;
@@ -17,6 +18,7 @@ type SuggestionCardProps = {
   /** Overrides the piece count, e.g. "2 of 6". */ meta?: string;
   /** Lets the user tap a piece to swap it. */ swapper?: Swapper;
   /** Shows a "Next look" control beside the title, next to the counter it changes. */ onNext?: () => void;
+  /** The "Style it" piece: shopping ideas never replace it. */ must?: string;
 };
 
 /** Honest titles: "Best match" only when the engine says the look earns it. */
@@ -27,7 +29,7 @@ function titleFor(s: Suggestion, index: number, edited: boolean) {
   return index === 0 ? "Top pick for you" : `Option ${index + 1}`;
 }
 
-export function SuggestionCard({ s: suggested, occasion, index, meta, swapper, onNext }: SuggestionCardProps) {
+export function SuggestionCard({ s: suggested, occasion, index, meta, swapper, onNext, must }: SuggestionCardProps) {
   const { urls, markWorn, saveOutfit } = useStore();
   const [saved, setSaved] = useState(false);
   // The look as the user has adjusted it. Parents key this card by its pieces, so a new suggestion starts fresh.
@@ -76,6 +78,7 @@ export function SuggestionCard({ s: suggested, occasion, index, meta, swapper, o
           </p>
         )}
 
+        <ShopIdea look={s.items} occasion={occasion} must={must} />
         <ScoreBreakdown rating={s.rating} factors={s.factors} />
 
         <div className="mt-4 mb-1 flex gap-2">

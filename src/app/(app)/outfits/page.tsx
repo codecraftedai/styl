@@ -82,7 +82,7 @@ function Outfits() {
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
               {list.map((s, i) => (
                 <div key={s.items.map((x) => x.id).join()} className="w-[82vw] max-w-sm shrink-0 snap-center md:w-auto md:max-w-none">
-                  <SuggestionCard s={s} occasion={occasion} index={i} swapper={swapper} />
+                  <SuggestionCard s={s} occasion={occasion} index={i} swapper={swapper} must={withId ?? undefined} />
                 </div>
               ))}
             </motion.div>

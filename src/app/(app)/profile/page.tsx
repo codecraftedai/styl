@@ -14,7 +14,7 @@ import { SeasonPicker } from "@/components/prefs/season-picker";
 import { useStore } from "@/lib/store";
 import { EMPTY_PREFS, type Prefs } from "@/lib/types";
 
-type Base = "name" | "wear" | "styles" | "occasions" | "love" | "avoid" | "weather" | "season";
+type Base = "name" | "wear" | "styles" | "occasions" | "love" | "avoid" | "weather" | "season" | "shopping";
 type Editor = Base | (typeof QUESTIONS)[number]["key"] | null;
 
 function Row({ label, value, onClick }: { label: string; value: ReactNode; onClick: () => void }) {
@@ -71,6 +71,16 @@ function Profile() {
     occasions: { title: "Occasions", body: <OccasionPicker value={draft.occasions} onChange={set("occasions")} /> },
     love: { title: "Colours you love", body: <ColourPicker value={draft.loveColours} onChange={set("loveColours")} disabled={draft.avoidColours} /> },
     avoid: { title: "Colours you avoid", body: <ColourPicker value={draft.avoidColours} onChange={set("avoidColours")} disabled={draft.loveColours} /> },
+    shopping: { title: "Shopping ideas", body: (
+      <div className="flex flex-col gap-4">
+        <Toggle checked={draft.shopping} onChange={set("shopping")} label="Suggest pieces worth adding" note="At most one per look, only when it clearly lifts the outfit, and never when you already own something that works." />
+        {draft.shopHidden.length > 0 && (
+          <Button variant="secondary" size="sm" className="self-start" onClick={() => setDraft((d) => ({ ...d, shopHidden: [] }))}>
+            Show {draft.shopHidden.length} hidden {draft.shopHidden.length === 1 ? "idea" : "ideas"} again
+          </Button>
+        )}
+      </div>
+    ) },
     season: { title: "Season right now", body: <><p className="-mt-1 mb-4 text-caption text-ink-3">Decides jackets, fabrics and rainy-day rules. A picked season stays until you set it back to Auto.</p><SeasonPicker value={draft.currentSeason} onChange={set("currentSeason")} /></> },
     weather: { title: "Weather", body: <div className="flex flex-col gap-4"><ClimatePicker value={draft.climate} onChange={set("climate")} /><Toggle checked={draft.liveWeather} onChange={set("liveWeather")} label="Use today's weather" note="Uses your location only to fetch the temperature." /></div> },
   };
@@ -104,6 +114,7 @@ function Profile() {
         <Row label="Love" value={p.loveColours.length ? p.loveColours.map((c) => <Swatch key={c} id={c} className="size-5" />) : none} onClick={() => edit("love")} />
         <Row label="Avoid" value={p.avoidColours.length ? p.avoidColours.map((c) => <Swatch key={c} id={c} className="size-5" />) : none} onClick={() => edit("avoid")} />
         <Row label="Season" value={p.currentSeason === "Auto" ? "Auto" : <>{p.currentSeason}<span className="text-ink-3">· set by you</span></>} onClick={() => edit("season")} />
+        <Row label="Shopping" value={p.shopping ? "Ideas on" : <span className="text-ink-3">Off</span>} onClick={() => edit("shopping")} />
         <Row label="Weather" value={`${p.climate}${p.liveWeather ? " · live" : ""}`} onClick={() => edit("weather")} />
       </div>
 

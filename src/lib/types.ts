@@ -78,6 +78,10 @@ export type Prefs = {
   accessories: (typeof ACCESSORY_LOVE)[number];
   /** Overrides the weather when not "Auto". Optional so profiles saved before it existed still load (merged with EMPTY_PREFS). */
   currentSeason: SeasonMode;
+  /** Show "complete the look" shopping ideas. */
+  shopping: boolean;
+  /** Catalogue keys the user dismissed with "Not interested". */
+  shopHidden: string[];
 };
 
 export type Profile = { name: string; prefs: Prefs; onboarded: boolean };
@@ -85,5 +89,5 @@ export type Profile = { name: string; prefs: Prefs; onboarded: boolean };
 export type Outfit = { id: string; name: string; itemIds: string[]; occasion: Occasion; createdAt: string };
 
 export const EMPTY_PREFS: Prefs = { wear: "Both", styles: [], occasions: [], loveColours: [], avoidColours: [], climate: "Hot", liveWeather: false,
-  dressCode: "Business casual", boldness: "Balanced", prints: "Sometimes", undertone: "Not sure", tempFeel: "Normal", accessories: "Sometimes", laundry: [], currentSeason: "Auto",
+  dressCode: "Business casual", boldness: "Balanced", prints: "Sometimes", undertone: "Not sure", tempFeel: "Normal", accessories: "Sometimes", laundry: [], currentSeason: "Auto", shopping: true, shopHidden: [],
 };
